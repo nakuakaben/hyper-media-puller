@@ -1,0 +1,24 @@
+[package]
+name = "hmp-infra"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+hmp-domain.workspace = true
+hmp-core.workspace = true
+async-trait.workspace = true
+tokio.workspace = true
+tempfile.workspace = true
+
+[dev-dependencies]
+hmp-contract = { path = "../hmp-contract" }
+serde_json.workspace = true
+
+[[test]]
+name = "safety"
+path = "../../tests/safety.rs"
+
+[lints]
+workspace = true

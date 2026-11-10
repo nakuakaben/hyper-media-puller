@@ -97,3 +97,11 @@ Les [contrats V1](V1_BEHAVIOR_CONTRACT.md), [matrice FTP](FTP_LEGACY_TEST_MATRIX
 Le lot 1 a livré la caractérisation automatisée sans matériel. La capture/qualification du **Studio Mini 2017**, d'un modèle récent et de plusieurs appareils physiques reste un jalon ouvert, repris au lot FTP ; elle n'est pas déclarée réalisée. Le cœur Rust avec ports/doubles peut démarrer au lot 2 après accord, mais aucun adaptateur ne pourra être déclaré compatible legacy sans cette preuve.
 
 Les décisions architecture/RWA/plateformes/début lot 1 de la table ci-dessus sont désormais acquises. Les versions minimales OS, architectures distribuées, formats portable/installeur, licences/actifs et reprise durable restent à préciser. Les garanties de sécurité décrites dans le lot 1 sont des exigences de conception, pas des correctifs V1 déjà appliqués. La charge globale n'est pas re-chiffrée sur la base de tests synthétiques seuls.
+
+## Résultats du lot 2 — 10 novembre 2026
+
+Le lot 2 a été autorisé puis implémenté : quatre crates Rust, moteur indépendant, ports et adaptateurs simulés, vrai disque temporaire privé, contrôles SAFE-01…12 et contrats UI sérialisables. Voir [RUST_CORE_IMPLEMENTATION.md](RUST_CORE_IMPLEMENTATION.md) et [LOT2_VALIDATION_REPORT.md](LOT2_VALIDATION_REPORT.md). La V1 compile et son code de production reste intact. La CI Rust native macOS/Windows est ajoutée ; un résultat Windows ne sera considéré acquis qu'après exécution attestée.
+
+Écart de base traité explicitement : le main constaté contenait la préparation fusionnée mais pas le lot 1 (PR #2 fermée sans fusion). Le lot 1 a été repris dans la nouvelle branche avant le cœur Rust, sans modifier main ni rouvrir/fusionner les anciennes PR.
+
+La prochaine étape est le lot 3 FTP réel, **après validation utilisateur**. Le moteur simulé ne lève pas le jalon matériel Studio Mini 2017. Ajouter au lot d'infrastructure la destination de production : confinement filesystem, I/O asynchrones, atomicité et durabilité sur les volumes réellement supportés. L'adaptateur TempDir du lot 2 reste réservé aux tests. La refonte UI et l'intégration Tauri restent hors de ce livrable ; aucune reprise persistante après crash n'est annoncée.
