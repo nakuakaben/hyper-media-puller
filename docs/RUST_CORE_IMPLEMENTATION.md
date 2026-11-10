@@ -44,7 +44,7 @@ MD5 et SHA-256 sont calculés sur les octets reçus puis comparés à une relect
 
 ## Réservations, partiels et point de publication
 
-Le nom local est un composant portable validé, distinct du chemin FTP. Le mapping automatique hex ASCII du basename est réversible et distingue casse/Unicode, # et ? sans les perdre. Le constructeur de nom local impose une longueur maximale de 200 octets ; un nom encodé trop long est refusé explicitement, avec possibilité de fournir un autre nom local valide. Aucun truncation/hash silencieux ne prétend préserver le nom.
+Le nom local est un composant portable validé, distinct du chemin FTP. Le mapping automatique hex ASCII du basename est réversible et distingue casse/Unicode, # et ? sans les perdre. Le constructeur de nom local impose une longueur maximale de 200 octets ; un nom encodé trop long est refusé explicitement, avec possibilité de fournir un autre nom local valide. Aucune troncature ni empreinte silencieuse ne prétend préserver le nom.
 
 Dans le bac à sable, les clés de réservation comparent les noms ASCII sans casse ; les noms Unicode bruts sont mappés en ASCII avant utilisation. Rename réserve un nom libre ; Skip ne signifie qu'existant non vérifié ; Overwrite est explicite et ne détruit pas l'ancien fichier pendant le transfert. Un nom déjà réservé ne peut pas être partagé par deux writers. Chaque tentative crée exclusivement `.hmp-<job>-<attempt>.part` avec create_new.
 

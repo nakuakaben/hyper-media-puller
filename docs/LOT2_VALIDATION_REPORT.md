@@ -51,7 +51,14 @@ Autres preuves : limites de concurrence globale et recorder, pause/drain/reprise
 
 **macOS ARM64 local : exécuté et réussi** comme ci-dessus. Aucune machine Windows n'est utilisée localement. La CI `.github/workflows/rust-core.yml` prévoit des runners natifs **macos-latest / windows-latest**, Rust 1.99.1, fmt/clippy/test/build avec lockfile. Les actions sont référencées par leurs SHA vérifiés ; permissions contents:read et aucun secret requis.
 
-À la rédaction initiale de ce rapport, l'exécution distante de cette nouvelle CI n'est pas encore attestée. Un workflow présent ne vaut pas un résultat Windows ; le statut natif sera indiqué séparément s'il peut être observé avant la PR. La validation d'installateurs, NTFS/exFAT/disques externes, Intel/ARM Windows et appareils physiques reste distincte de cette CI simulée.
+**CI native exécutée et réussie avant la PR** : [run 42848553663](https://github.com/nakuakaben/hyper-media-puller/actions/runs/42848553663), commit moteur `2de4ba026bb07757563f0210afc1a1f42e0de86e`. Les journaux ont été lus, pas seulement le statut global. macOS utilise l'image `macos-26-arm64` / `aarch64-apple-darwin`, Windows l'image `windows-2025-vs2026` / `x86_64-pc-windows-msvc`, tous deux avec rustc 1.99.1.
+
+| Runner natif | Format | Clippy strict | Tests | Build |
+| --- | --- | --- | --- | --- |
+| macOS ARM64 | Réussi | Réussi | 7 domaine + 32 intégration, 0 échec/ignoré | Réussi |
+| Windows x64 MSVC | Réussi | Réussi | 7 domaine + 32 intégration, 0 échec/ignoré | Réussi |
+
+La mise à jour finale après ce run est uniquement documentaire : le code, le lockfile, le workflow et les tests restent ceux du commit validé. La [preuve CI expurgée](LOT2_CI_RESULTS.json) conserve les IDs, résultats des étapes et comptes lus dans les logs. La validation d'installateurs, NTFS/exFAT/disques externes, Intel macOS/ARM Windows et appareils physiques reste distincte de cette CI simulée.
 
 ## Limites et réserves concrètes
 

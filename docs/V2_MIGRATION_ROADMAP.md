@@ -100,7 +100,7 @@ Les décisions architecture/RWA/plateformes/début lot 1 de la table ci-dessus s
 
 ## Résultats du lot 2 — 10 novembre 2026
 
-Le lot 2 a été autorisé puis implémenté : quatre crates Rust, moteur indépendant, ports et adaptateurs simulés, vrai disque temporaire privé, contrôles SAFE-01…12 et contrats UI sérialisables. Voir [RUST_CORE_IMPLEMENTATION.md](RUST_CORE_IMPLEMENTATION.md) et [LOT2_VALIDATION_REPORT.md](LOT2_VALIDATION_REPORT.md). La V1 compile et son code de production reste intact. La CI Rust native macOS/Windows est ajoutée ; un résultat Windows ne sera considéré acquis qu'après exécution attestée.
+Le lot 2 a été autorisé puis implémenté : quatre crates Rust, moteur indépendant, ports et adaptateurs simulés, vrai disque temporaire privé, contrôles SAFE-01…12 et contrats UI sérialisables. Voir [RUST_CORE_IMPLEMENTATION.md](RUST_CORE_IMPLEMENTATION.md) et [LOT2_VALIDATION_REPORT.md](LOT2_VALIDATION_REPORT.md). La V1 compile et son code de production reste intact. La [CI native macOS ARM64 / Windows x64](https://github.com/nakuakaben/hyper-media-puller/actions/runs/42848553663) a exécuté formatage, Clippy, 39 tests et build sur les deux plateformes avec succès. Cela valide le moteur simulé, pas des appareils FTP ni des installateurs.
 
 Écart de base traité explicitement : le main constaté contenait la préparation fusionnée mais pas le lot 1 (PR #2 fermée sans fusion). Le lot 1 a été repris dans la nouvelle branche avant le cœur Rust, sans modifier main ni rouvrir/fusionner les anciennes PR.
 

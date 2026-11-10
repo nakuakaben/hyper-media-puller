@@ -1,0 +1,113 @@
+{
+  "date": "2026-11-10",
+  "run_id": 42848553663,
+  "run_url": "https://github.com/nakuakaben/hyper-media-puller/actions/runs/42848553663",
+  "head_sha": "2de4ba026bb07757563f0210afc1a1f42e0de86e",
+  "status": "completed",
+  "conclusion": "success",
+  "source": "GitHub Actions job metadata and decoded logs read before draft PR creation",
+  "jobs": [
+    {
+      "job_id": 129942572982,
+      "name": "rust (windows-latest)",
+      "url": "https://github.com/nakuakaben/hyper-media-puller/actions/runs/42848553663/job/129942572982",
+      "status": "completed",
+      "conclusion": "success",
+      "tests": {
+        "domain": 7,
+        "integration": 32,
+        "failed": 0,
+        "ignored": 0
+      },
+      "steps": [
+        {
+          "name": "Set up job",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run cargo fmt --all --check",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run cargo clippy --workspace --all-targets --locked -- -D warnings",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run cargo test --workspace --locked",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run cargo build --workspace --locked",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "conclusion": "success"
+        },
+        {
+          "name": "Complete job",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "job_id": 129942573298,
+      "name": "rust (macos-latest)",
+      "url": "https://github.com/nakuakaben/hyper-media-puller/actions/runs/42848553663/job/129942573298",
+      "status": "completed",
+      "conclusion": "success",
+      "tests": {
+        "domain": 7,
+        "integration": 32,
+        "failed": 0,
+        "ignored": 0
+      },
+      "steps": [
+        {
+          "name": "Set up job",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run cargo fmt --all --check",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run cargo clippy --workspace --all-targets --locked -- -D warnings",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run cargo test --workspace --locked",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run cargo build --workspace --locked",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "conclusion": "success"
+        },
+        {
+          "name": "Complete job",
+          "conclusion": "success"
+        }
+      ]
+    }
+  ]
+}
