@@ -1,0 +1,21 @@
+export const ipcChannels = {
+  getSettings: "settings:get",
+  saveSettings: "settings:save",
+  testRecorder: "recorder:test",
+  scanMedia: "media:scan",
+  chooseDestination: "destination:choose",
+  addJobs: "queue:add-jobs",
+  startQueue: "queue:start",
+  pauseQueue: "queue:pause",
+  cancelJob: "queue:cancel-job",
+  retryJob: "queue:retry-job",
+  clearFinished: "queue:clear-finished",
+  getQueue: "queue:get",
+  queueUpdated: "queue:updated",
+  logEntry: "log:entry",
+  getLogs: "log:get",
+  getNetworkInterfaces: "network:get-interfaces",
+  startHyperDeckSearch: "network:hyperdeck-search:start",
+  cancelHyperDeckSearch: "network:hyperdeck-search:cancel",
+  hyperDeckSearchProgress: "network:hyperdeck-search:progress"
+} as const;

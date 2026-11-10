@@ -1,0 +1,17 @@
+node_modules/
+dist/
+dist-*/
+release/
+.tmp-dev-check/
+*.log
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+.agents/
+.codex/
+*.zip
+*.exe
+*.blockmap
+Thumbs.db
+.DS_Store

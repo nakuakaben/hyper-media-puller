@@ -1,0 +1,87 @@
+{
+  "name": "hyperdeck-media-puller",
+  "version": "1.1.0",
+  "description": "Windows Electron app to pull media from Blackmagic HyperDeck recorders over FTP.",
+  "productName": "HyperDeck Media Puller",
+  "main": "dist/main/main.js",
+  "scripts": {
+    "dev": "concurrently -k \"vite --host 127.0.0.1\" \"wait-on tcp:5173 && cross-env VITE_DEV_SERVER_URL=http://127.0.0.1:5173 electron .\"",
+    "version:bump": "node scripts/increment-version.mjs 1.1.0",
+    "version:sync": "node scripts/sync-version.mjs",
+    "build": "npm run version:bump && npm run build:app",
+    "build:app": "npm run version:sync && node scripts/verify-icons.mjs && npm run build:main && npm run build:renderer",
+    "build:main": "tsc -p tsconfig.main.json",
+    "build:renderer": "tsc -p tsconfig.renderer.json && vite build",
+    "test:ftp-paths": "npm run build:main && node scripts/verify-ftp-paths.mjs",
+    "dist": "npm run build:app && electron-builder --win nsis portable",
+    "dist:win": "npm run build:app && electron-builder --win nsis portable",
+    "dist:portable": "npm run build:app && electron-builder --win portable",
+    "dist:installer": "npm run build:app && electron-builder --win nsis",
+    "smoke:dev": "node scripts/smoke-dev.mjs"
+  },
+  "dependencies": {
+    "basic-ftp": "^5.0.5",
+    "electron-log": "^5.2.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.1.2",
+    "cross-env": "^7.0.3",
+    "electron": "^43.1.0",
+    "electron-builder": "^26.15.3",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.6",
+    "wait-on": "^8.0.1"
+  },
+  "build": {
+    "appId": "fr.tktprod.hyperdeck-media-puller",
+    "productName": "HyperDeck Media Puller",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "build",
+        "to": "build",
+        "filter": [
+          "icon.ico",
+          "icon.icns",
+          "icon.png"
+        ]
+      }
+    ],
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "artifactName": "HyperDeck Media Puller ${version}.${ext}"
+    },
+    "mac": {
+      "icon": "build/icon.icns"
+    },
+    "linux": {
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "artifactName": "HyperDeck Media Puller Setup ${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "HyperDeck Media Puller Portable ${version}.${ext}"
+    }
+  }
+}
