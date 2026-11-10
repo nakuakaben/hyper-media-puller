@@ -13,6 +13,7 @@
     "build:main": "tsc -p tsconfig.main.json",
     "build:renderer": "tsc -p tsconfig.renderer.json && vite build",
     "test:ftp-paths": "npm run build:main && node scripts/verify-ftp-paths.mjs",
+    "test:characterization": "npm run build:main && node --test --test-timeout=30000 tests/characterization/*.test.mjs",
     "dist": "npm run build:app && electron-builder --win nsis portable",
     "dist:win": "npm run build:app && electron-builder --win nsis portable",
     "dist:portable": "npm run build:app && electron-builder --win portable",
