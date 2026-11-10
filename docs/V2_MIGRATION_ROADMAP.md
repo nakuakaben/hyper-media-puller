@@ -6,7 +6,7 @@
 
 Cette PR contient [l'audit](RUST_MIGRATION_AUDIT.md), [la proposition Rust](RUST_ARCHITECTURE_PROPOSAL.md), [le plan UI](UI_REDESIGN_PLAN.md) et cette roadmap. Les instructions de développement renvoient à ces documents. Aucun nouveau workspace Rust, écran V2, changement FTP, version ou dépendance n'est introduit.
 
-Après préparation de la PR, **attendre la validation utilisateur avant le lot 1**. La recommandation Tauri 2 n'est pas une décision technique déjà approuvée. La migration ne débute pas automatiquement à la fusion de documents.
+**Mise à jour lot 1, 10 novembre 2026 :** l'utilisateur a validé Tauri 2 + Rust + React/TypeScript/Vite, le moteur indépendant, RWA 0.8.1, macOS/Windows, la conservation d'Electron et le lot 1. Les sections historiques de préparation restent conservées. Attendre désormais la validation du **lot 2** après la PR lot 1 ; aucune fusion ni suite automatique.
 
 ## Lots, dépendances et critères de sortie
 
@@ -89,3 +89,11 @@ Une bascule nécessite validation utilisateur sur un rapport de qualification in
 | Ergonomie | Shell RWA et espaces Médias / Transferts / Rapports / Paramètres | Validation d'une planche de composants avant construction complète |
 
 Les choix ordinaires d'implémentation au sein d'un lot autorisé restent autonomes. Toute extension métier, upload, contrôle transport ou mélange avec les fonctionnalités RWA reste hors périmètre.
+
+## Résultats du lot 1 et ajustement des jalons
+
+Les [contrats V1](V1_BEHAVIOR_CONTRACT.md), [matrice FTP](FTP_LEGACY_TEST_MATRIX.md), [exigences de sécurité](TRANSFER_SAFETY_SPEC.md), [contrats de domaine Rust](RUST_DOMAIN_CONTRACTS.md) et [rapport de validation](LOT1_VALIDATION_REPORT.md) remplacent les suppositions par un corpus reproductible. Le smoke a un profil isolé ; les tests V1 reproduisent des collisions, same-size skip, annulation hash non terminale et absence de contrôle de taille au niveau queue. Ces défauts doivent devenir des critères inversés explicites dans les tests du futur moteur.
+
+Le lot 1 a livré la caractérisation automatisée sans matériel. La capture/qualification du **Studio Mini 2017**, d'un modèle récent et de plusieurs appareils physiques reste un jalon ouvert, repris au lot FTP ; elle n'est pas déclarée réalisée. Le cœur Rust avec ports/doubles peut démarrer au lot 2 après accord, mais aucun adaptateur ne pourra être déclaré compatible legacy sans cette preuve.
+
+Les décisions architecture/RWA/plateformes/début lot 1 de la table ci-dessus sont désormais acquises. Les versions minimales OS, architectures distribuées, formats portable/installeur, licences/actifs et reprise durable restent à préciser. Les garanties de sécurité décrites dans le lot 1 sont des exigences de conception, pas des correctifs V1 déjà appliqués. La charge globale n'est pas re-chiffrée sur la base de tests synthétiques seuls.

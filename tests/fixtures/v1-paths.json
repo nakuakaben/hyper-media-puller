@@ -1,0 +1,24 @@
+{
+  "provenance": "Synthetic inputs derived from V1 source; not a physical HyperDeck capture. Expected values characterize V1, including known defects.",
+  "cases": [
+    { "id": "PATH-01", "input": "", "expected": "/" },
+    { "id": "PATH-02", "input": "/", "expected": "/" },
+    { "id": "PATH-03", "input": "1", "expected": "/1" },
+    { "id": "PATH-04", "input": "/1", "expected": "/1" },
+    { "id": "PATH-05", "input": "HyperDeck Studio Mini:/", "expected": "/" },
+    { "id": "PATH-06", "input": "HyperDeck Studio Mini:/2", "expected": "/2" },
+    { "id": "PATH-07", "input": "ftp://192.0.2.10/2", "expected": "/2" },
+    { "id": "PATH-08", "input": " \\1\\TAKES// ", "expected": "/1/TAKES" },
+    { "id": "PATH-09", "input": "/1/../2", "error": "parent traversal" },
+    { "id": "PATH-10", "input": "/1/..", "error": "parent traversal" },
+    { "id": "PATH-11", "input": "/1/été plan 01.mov", "expected": "/1/été plan 01.mov" },
+    { "id": "PATH-12", "input": "/1/take#01.mov", "expected": "/1/take", "issue": "fragment truncation" },
+    { "id": "PATH-13", "input": "/1/take?01.mov", "expected": "/1/take", "issue": "query truncation" },
+    { "id": "PATH-14", "input": "ftp://192.0.2.10/1/../2", "expected": "/2", "issue": "URL parser resolves parent segment before validation" },
+    { "id": "PATH-15", "input": "/1/./clip.mov", "expected": "/1/./clip.mov" },
+    { "id": "PATH-16", "input": "/1/CON.mov", "expected": "/1/CON.mov", "issue": "Windows reserved name not rejected" },
+    { "id": "PATH-17", "input": "/1/line\nbreak.mov", "expected": "/1/line\nbreak.mov", "issue": "raw control character not rejected by path-utils" },
+    { "id": "PATH-18", "input": null, "expected": "/" },
+    { "id": "PATH-19", "input": "ftp://192.0.2.10/1/%C3%A9t%C3%A9.mov", "expected": "/1/%C3%A9t%C3%A9.mov", "issue": "URL path remains percent encoded" }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "provenance": "Synthetic FTP scenarios, anonymous credentials from HMP source, documentation-only IPs. Not recorder transcripts.",
+  "authentication": [
+    { "id": "AUTH-01", "password": "", "errors": [], "attempts": [""], "legacy": false },
+    { "id": "AUTH-02", "password": "", "errors": ["530 Login refused"], "attempts": ["", "anonymous@hmp.local"], "legacy": true },
+    { "id": "AUTH-03", "password": "", "errors": ["501 Password required", "530 Login refused"], "attempts": ["", "anonymous@hmp.local", "guest@"], "legacy": true },
+    { "id": "AUTH-04", "password": "synthetic-test-password", "errors": ["530 Login refused"], "attempts": ["synthetic-test-password"], "reject": "530" },
+    { "id": "AUTH-05", "user": "synthetic-operator", "password": "", "errors": ["530 Login refused"], "attempts": [""], "reject": "530" },
+    { "id": "AUTH-06", "password": "", "errors": ["ECONNRESET"], "attempts": [""], "reject": "ECONNRESET" },
+    { "id": "AUTH-07", "password": "", "errors": ["530", "530", "530"], "attempts": ["", "anonymous@hmp.local", "guest@"], "reject": "530" }
+  ],
+  "listing": [
+    { "id": "LIST-01", "path": "/", "steps": [["list", "/", "501 Invalid path"], ["list", null]], "legacy": true },
+    { "id": "LIST-02", "path": "/1", "steps": [["list", "/1", "501 Invalid path"], ["cd", "/1"], ["list", null]] },
+    { "id": "LIST-03", "path": "/2", "steps": [["list", "/2"]] },
+    { "id": "LIST-04", "path": "/missing", "steps": [["list", "/missing", "550 Not found"]], "reject": "550" },
+    { "id": "LIST-05", "path": "/", "steps": [["list", "/", "550 No absolute listing"], ["list", null]], "legacy": true }
+  ],
+  "unixRoot": "drwxr-xr-x 1 owner group 0 Jan 01 2026 1\r\ndrwxr-xr-x 1 owner group 0 Jan 01 2026 2\r\n",
+  "unixMedia": "-rw-r--r-- 1 owner group 4 Jan 01 2026 été plan 01.mov\r\n-rw-r--r-- 1 owner group 0 Jan 01 2026 empty.mov\r\n",
+  "dosMedia": "01-01-26  12:00PM                  4 clip.mov\r\n"
+}
