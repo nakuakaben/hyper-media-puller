@@ -19,14 +19,38 @@ npm run dist:portable
 npm run dist:installer
 ```
 
-Les executables sont generes dans `release/`. Le smoke utilise les ports 5173 et 9323, des services de test et la configuration utilisateur Electron : sauvegarder cette configuration avant un test sur un poste de production. Le port 9993 doit etre libre pour valider le faux HyperDeck.
+Les executables sont generes dans `release/`. Depuis le lot 1, le smoke utilise un profil Electron temporaire (userData et sessionData) et une destination temporaire, nettoyes apres arret des processus. Il conserve les ports 5173 et 9323. Son ancien sondage LAN est desactive par defaut ; `HMP_SMOKE_NETWORK=1` l'active explicitement avec les ports 9993 et 21. Ce sondage ne constitue pas une validation de materiel reel.
 
 Pour contribuer : creer une branche, effectuer un changement cible, executer build:app et les tests pertinents, puis ouvrir une pull request. Ne jamais committer les identifiants FTP, logs utilisateur ou sorties de build. Lire AGENTS.md et PROJECT_STATUS.md avant toute reprise Codex.
 
 ## Préparation V2 Rust (10 novembre 2026)
 
-La V2 est au stade de proposition : [audit](RUST_MIGRATION_AUDIT.md), [architecture Rust](RUST_ARCHITECTURE_PROPOSAL.md), [refonte UI](UI_REDESIGN_PLAN.md), [roadmap et décisions](V2_MIGRATION_ROADMAP.md). Ne pas engager la migration avant validation utilisateur. Electron reste à la racine ; le futur dossier `v2/` et ses commandes n'existent pas encore.
+Documents de préparation préservés : [audit](RUST_MIGRATION_AUDIT.md), [architecture Rust](RUST_ARCHITECTURE_PROPOSAL.md), [refonte UI](UI_REDESIGN_PLAN.md), [roadmap et décisions](V2_MIGRATION_ROADMAP.md). L'utilisateur a validé Tauri 2 / Rust / React-TS-Vite, un moteur indépendant, RWA 0.8.1 et les lots 1/2. Electron reste à la racine ; le moteur simulé Rust est maintenant dans `v2/`. Le lot 3 reste soumis à validation ; aucune application Tauri ou interface V2 n'existe encore.
 
 Sur macOS, utiliser une installation Node 24 LTS pour la validation Electron : Node 20 entraîne des avertissements de moteur avec Electron 43. Dans cette mission, Node 24.22.0, `npm ci`, `npm run build:app` et `npm run test:ftp-paths` ont réussi. Cela ne valide ni les transferts matériels ni le packaging macOS/Windows.
 
-`npm audit --json` signale 25 vulnérabilités au 10 novembre 2026 ; les trier avant redistribution sans appliquer de mise à jour majeure automatique. Ne pas lancer le smoke sur un profil de production : son isolation userData est un préalable proposé dans le premier lot V2.
+`npm ci` signale encore 25 vulnérabilités au 10 novembre 2026 ; les trier avant redistribution sans appliquer de mise à jour majeure automatique. Le lot 1 n'a modifié aucune dépendance ni le lockfile.
+
+## Corpus du lot 1
+
+```sh
+npm run test:characterization
+npm run smoke:dev
+```
+
+Le corpus compile le main V1 puis utilise Node test runner, des paramètres temporaires, des doubles de frontières explicites et un serveur FTP de lecture sur loopback/ports éphémères. Voir [tests/README.md](../tests/README.md) et [le rapport de validation](LOT1_VALIDATION_REPORT.md). Les tests qui exposent les défauts V1 ne doivent pas devenir des critères de sécurité V2 inchangés. Aucun HyperDeck physique n'est requis pour ce corpus ; les scénarios matériels restant à exécuter sont séparés dans [la matrice FTP](FTP_LEGACY_TEST_MATRIX.md).
+
+## Moteur Rust — lot 2
+
+Rust stable avec rustfmt/clippy, validé avec 1.99.1. Aucun prérequis Tauri pour le moteur. Depuis la racine :
+
+```sh
+cd v2
+cargo fmt --all --check
+cargo clippy --workspace --all-targets --locked -- -D warnings
+cargo test --workspace --locked
+cargo build --workspace --locked
+cargo run --locked -p hmp-infra --example simulate
+```
+
+L'exemple et les tests utilisent uniquement des sources fictives et des répertoires temporaires privés ; ils n'ont pas besoin d'HyperDeck ni de paramètres utilisateur. Voir [v2/README.md](../v2/README.md), [l'implémentation](RUST_CORE_IMPLEMENTATION.md) et [le rapport lot 2](LOT2_VALIDATION_REPORT.md). Ne pas utiliser le sandbox comme adaptateur de destination opérateur. La CI Rust prévoit macOS et Windows sans installer Electron.

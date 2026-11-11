@@ -1,5 +1,5 @@
 import { spawn, spawnSync } from "node:child_process";
-import { appendFile, mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { appendFile, mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
@@ -146,7 +146,29 @@ class CdpClient {
 }
 
 async function main() {
+  // Refuse occupied ports before launching or attaching to a debugger.
+  for (const port of [vitePort, debugPort]) {
+    await new Promise((resolve, reject) => {
+      const probe = net.createServer();
+      probe.once("error", reject);
+      probe.listen(port, "127.0.0.1", () => probe.close(resolve));
+    });
+  }
+  // Test launcher only: never load or overwrite the production Electron profile.
+  const tempProfile = await mkdtemp(path.join(os.tmpdir(), "hmp-smoke-profile-"));
+  cleanupDirectories.push(tempProfile);
+  const sessionPath = path.join(tempProfile, "session");
+  await mkdir(sessionPath, { recursive: true });
+  const launcher = path.join(tempProfile, "main.cjs");
+  await writeFile(launcher, `const { app } = require("electron");
+app.setPath("userData", ${JSON.stringify(tempProfile)});
+app.setPath("sessionData", ${JSON.stringify(sessionPath)});
+if (app.getPath("userData") !== ${JSON.stringify(tempProfile)}) throw new Error("Smoke profile isolation failed");
+require(${JSON.stringify(path.join(root, "dist", "main", "main.js"))});
+`, "utf8");
+  // Cleanup after child shutdown, including early bootstrap failures.
   const tempDestination = await mkdtemp(path.join(os.tmpdir(), "hyperdeck-media-puller-smoke-"));
+  cleanupDirectories.push(tempDestination);
   await mkdir(tempDestination, { recursive: true });
   await writeFile(path.join(tempDestination, "skip.mov"), "");
   await writeFile(path.join(tempDestination, "A.mov"), "");
@@ -156,7 +178,7 @@ async function main() {
   await waitForHttp(`http://127.0.0.1:${vitePort}`);
 
   await trace("SMOKE_STEP start electron");
-  start(bin("electron"), ["--remote-debugging-port=" + debugPort, "."], {
+  start(bin("electron"), ["--remote-debugging-address=127.0.0.1", "--remote-debugging-port=" + debugPort, launcher], {
     VITE_DEV_SERVER_URL: `http://127.0.0.1:${vitePort}`
   });
 
@@ -202,6 +224,11 @@ async function main() {
       mockMode: true
     })`);
 
+    const isolatedSettings = JSON.parse(await readFile(path.join(tempProfile, "settings.json"), "utf8"));
+    if (isolatedSettings.recorders[0]?.id !== "rec-1" || isolatedSettings.lastDestination !== tempDestination) {
+      throw new Error("Smoke settings were not written to the isolated profile");
+    }
+    await trace("SMOKE_PROFILE_ISOLATED settings and session storage use temporary directories");
     await cdp.evaluate(`location.reload()`);
     await cdp.evaluate(`new Promise((resolve, reject) => {
       const started = Date.now();
@@ -240,7 +267,9 @@ async function main() {
     await trace("SMOKE_STEP verify network search api");
     const networkInterfaces = await cdp.evaluate(`window.hyperdeck.getNetworkInterfaces()`);
     let searchSummary = { interfaces: networkInterfaces.length, confirmed: 0, ftpStatus: "not-run" };
-    if (networkInterfaces.length > 0) {
+    // Physical network probing is opt-in. Headless characterization tests cover
+    // discovery with synthetic sockets and FTP with ephemeral loopback ports.
+    if (process.env.HMP_SMOKE_NETWORK === "1" && networkInterfaces.length > 0) {
       const selectedInterface = networkInterfaces[0];
       const fakeHyperDeck = await startFakeHyperDeckServer();
       const fakeFtp = await startFakeFtpServer(selectedInterface.address);
@@ -287,6 +316,8 @@ async function main() {
       } catch (error) {
         await trace(`SMOKE_WARN cancel scan check skipped: ${error instanceof Error ? error.message : String(error)}`);
       }
+    } else {
+      await trace("SMOKE_SKIP network probing (set HMP_SMOKE_NETWORK=1 to opt in)");
     }
 
     await trace("SMOKE_STEP scan mock folders");
@@ -421,7 +452,6 @@ async function main() {
     })}`);
   } finally {
     cdp.close();
-    await rm(tempDestination, { recursive: true, force: true });
     for (const server of servers.reverse()) {
       await new Promise((resolve) => server.close(() => resolve(undefined)));
     }
@@ -510,17 +540,27 @@ async function startFakeFtpServer(publicAddress) {
   }
 }
 
+const cleanupDirectories = [];
+
 main()
   .catch((error) => {
     console.error("SMOKE_FAILED", error);
     process.exitCode = 1;
   })
-  .finally(() => {
+  .finally(async () => {
     for (const child of processes.reverse()) {
+      if (child.exitCode !== null || child.signalCode !== null) continue;
       if (isWindows) {
         spawnSync("taskkill", ["/PID", String(child.pid), "/T", "/F"], { stdio: "ignore" });
       } else if (!child.killed) {
         child.kill();
       }
+      await new Promise(resolve => {
+        const timer = setTimeout(() => { child.kill("SIGKILL"); resolve(); }, 3000);
+        child.once("exit", () => { clearTimeout(timer); resolve(); });
+      });
+    }
+    for (const directory of cleanupDirectories) {
+      await rm(directory, { recursive: true, force: true });
     }
   });
