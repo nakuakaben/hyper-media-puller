@@ -2,11 +2,13 @@ import { Activity, AppWindow, ChevronRight, Clapperboard, FileCheck2, Folder, In
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
 import '@fontsource-variable/inter'
-import { bridge, errorMessage, type Deck, type Job, type PreviewInfo } from './contracts'
-import { advanceDemo, demoDecks, demoJob, initialJobs, listDemo } from './demo'
+import { bridge, errorMessage, offload, type Deck, type Job, type PreviewInfo, type TransferAction, type TransferOptions as OptionsDto } from './contracts'
+import { advanceDemo, demoDecks, demoJob, initialJobs, listDemo, formatBytes } from './demo'
 import { MediaBrowser, Recorders, TransferOptions, type Listing } from './media'
 import { defaultPreferences, Options, Settings, type Preferences } from './settings'
 import { CompactQueue, Reports, Transfers } from './transfers'
+import { RealReports } from './reports'
+import { useOffload } from './offload'
 import { Badge, Empty, Loading, Panel, ProgressCell, Splitter, defaultLayout, layoutStyle, type Layout } from './ui'
 import './tokens.css'
 import './style.css'
@@ -89,7 +91,16 @@ function ComponentBoard() {
   </div>
 }
 
+function optionsDto(values: Preferences): OptionsDto {
+  return { batch: { duplicate: values.duplicate, checksum: values.checksum },
+    global_limit: values.concurrency, recorder_limit: values.recorderLimit }
+}
+
 function App() {
+  const real = useOffload()
+  const hydrated = useRef(false)
+  const [saved, setSaved] = useState(false)
+  const [preferredBatch, setPreferredBatch] = useState<string>()
   const [page, setPage] = useState<Page>('media')
   const [demo, setDemo] = useState(false)
   const [info, setInfo] = useState<PreviewInfo>()
@@ -120,12 +131,28 @@ function App() {
   const activeDeck = decks.find(deck => deck.recorder.id === id)
   const listingKey = JSON.stringify([demo, id, path, refresh])
   const listing: Listing = !activeDeck ? idle : result?.key === listingKey ? result.listing : { status: 'loading', items: [] }
-  const visibleJobs = demo ? jobs : []
-  const names = Object.fromEntries(decks.map(({ recorder }) => [recorder.id, recorder.name]))
+  const visibleJobs = demo ? jobs : real.queue?.jobs ?? []
+  const names = demo ? Object.fromEntries(decks.map(({ recorder }) => [recorder.id, recorder.name])) : real.queue?.recorders ?? {}
   const chosen = listing.items.filter(item => !item.directory && selected.has(item.remote_path))
   const bytes = chosen.some(entry => entry.size === null) ? null : String(chosen.reduce((sum, entry) => sum + BigInt(entry.size ?? '0'), 0n))
-  const values = demo ? demoPreferences : preferences
-  const setValues = demo ? setDemoPreferences : setPreferences
+  const values = demo ? demoPreferences : { ...preferences, destination: real.settings?.destination ?? '' }
+  const available = real.settings?.available ? formatBytes(real.settings.available) : undefined
+  const realRunning = Boolean(real.queue?.active || real.queue?.batches.some(batch => batch.started))
+  function setValues(next: Preferences) {
+    if (demo) setDemoPreferences(next)
+    else {
+      setPreferences(next)
+      setSaved(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!hydrated.current && real.settings) {
+      const options = real.settings.options
+      hydrated.current = true
+      setPreferences({ ...options.batch, concurrency: options.global_limit, recorderLimit: options.recorder_limit, destination: '' })
+    }
+  }, [real.settings])
 
   useEffect(() => {
     if (bridge.native) bridge.info().then(setInfo).catch(error => setBridgeError(errorMessage(error)))
@@ -156,7 +183,7 @@ function App() {
       }, 220)
       return () => { window.clearTimeout(timer); current = false }
     }
-    bridge.list(activeDeck.recorder, path).then(receive).catch(fail)
+    bridge.list(activeDeck.recorder.id, path).then(receive).catch(fail)
     return () => { current = false }
   }, [activeDeck, demo, id, path, listingKey])
   useEffect(() => {
@@ -178,16 +205,29 @@ function App() {
   }
 
   function toggleDemo() {
+    if (!demo && (realRunning || real.busy)) return
     setDemo(!demo)
     setPlaying(false)
     if (!demo) setDemoId('mini')
     setSelectedJob(undefined)
+    setPreferredBatch(undefined)
     setPage('media')
     navigate(demo ? '/' : '/1')
   }
 
-  function addJobs() {
-    if (!demo || !chosen.length || !values.destination.trim()) return
+  async function addJobs() {
+    if (!chosen.length || !values.destination.trim()) return
+    if (!demo) {
+      if (!activeDeck) return
+      const batch = await real.perform(() => offload.enqueue(activeDeck.recorder.id, chosen.map(item => item.remote_path), optionsDto(values)))
+      if (!batch) return
+      setSelected(new Set())
+      setSelectedJob(undefined)
+      setPreferredBatch(batch)
+      setOverlay(undefined)
+      setPage('transfers')
+      return
+    }
     const additions = chosen.map(item => demoJob(item, 'demo-' + demoSequence.current++))
     setJobs(previous => [...previous, ...additions])
     setSelected(new Set())
@@ -200,17 +240,31 @@ function App() {
       : { ...job, status: 'cancelled', error: null }))
   }
 
+  async function saveDefaults() {
+    const result = await real.perform(() => offload.saveOptions(optionsDto(values)))
+    if (result) {
+      real.setSettings(result)
+      setSaved(true)
+    }
+  }
+
+  function action(action: TransferAction, id: string) {
+    if (!demo) void real.perform(() => offload.action(action, id))
+  }
+
   const transferOptions = <TransferOptions demo={demo} values={values} onChange={setValues}
-    count={chosen.length} bytes={bytes} onAdd={addJobs} />
+    count={chosen.length} bytes={bytes} onAdd={addJobs} onChoose={real.choose} available={available} busy={!demo && (real.busy || !bridge.native)} />
   return <div className="app">
     <main className="workspace" id="main-content">
       <header className="workspace-head">
         <div className="app-name"><AppWindow size={18} /><span>HyperDeck Media Puller</span><ChevronRight size={13} />
           <h1>{pages.find(item => item.id === page)?.title}</h1></div>
-        <div className="row"><Badge label={demo ? 'Mode démonstration' : bridge.native ? 'FTP lecture seule' : 'Aperçu navigateur'} tone={demo ? 'warn' : 'neutral'} />
-          <button onClick={toggleDemo}>{demo ? 'Quitter la démonstration' : 'Ouvrir la démonstration'}</button></div>
+        <div className="row"><Badge label={demo ? 'Mode démonstration' : bridge.native ? 'Mode réel' : 'Aperçu navigateur'} tone={demo ? 'warn' : 'neutral'} />
+          <button disabled={!demo && (realRunning || real.busy)} onClick={toggleDemo}>{demo ? 'Quitter la démonstration' : 'Ouvrir la démonstration'}</button></div>
       </header>
       {bridgeError && <div className="callout error bridge-error" role="alert">{bridgeError}</div>}
+      {!demo && real.connectionError && <div className="callout error bridge-error" role="alert">File en cours de reconnexion · {real.connectionError}</div>}
+      {!demo && real.feedback && <div className="callout error bridge-error" role="alert">{real.feedback}</div>}
       {page === 'media' && <div className="media-layout" style={layoutStyle(activeLayout)}>
         <div className={'upper' + (compact ? ' compact' : '')}>
           <Recorders decks={decks} active={id} demo={demo} native={bridge.native} onSelect={chooseDeck} onConnect={() => setOverlay('connect')} />
@@ -222,14 +276,16 @@ function App() {
         </div>
         <Splitter axis="y" label="Hauteur de la file" min={128} max={queueMax} value={activeLayout.queue} reverse
           onChange={queue => setLayout({ ...layout, queue })} />
-        <CompactQueue jobs={visibleJobs} names={names} onOpen={job => { setSelectedJob(job); setPage('transfers') }} />
+        <CompactQueue jobs={visibleJobs} names={names} onOpen={job => { setPreferredBatch(undefined); setSelectedJob(job); setPage('transfers') }} />
       </div>}
-      {page === 'transfers' && <Transfers jobs={visibleJobs} names={names} demo={demo} selected={selectedJob} onSelect={setSelectedJob}
+      {page === 'transfers' && <Transfers jobs={visibleJobs} names={names} demo={demo} selected={selectedJob} preferredBatch={preferredBatch} onSelect={job => { setPreferredBatch(undefined); setSelectedJob(job) }}
         playing={playing} onPlayback={() => setPlaying(value => !value)}
+        batches={real.queue?.batches ?? []} destinations={real.queue?.destinations ?? []} rates={real.rates} onAction={action} busy={real.busy || Boolean(real.connectionError)}
         onCancel={job => changeJob(job, false)} onRetry={job => changeJob(job, true)} />}
-      {page === 'reports' && <Reports demo={demo} jobs={visibleJobs} />}
+      {page === 'reports' && (demo ? <Reports demo jobs={visibleJobs} /> : <RealReports queue={real.queue} />)}
       {page === 'settings' && <Settings demo={demo} native={bridge.native} info={info} values={values} onChange={setValues}
-        onConnect={() => setOverlay('connect')} onReset={() => setLayout(defaultLayout)} onComponents={() => setOverlay('components')} />}
+        onConnect={() => setOverlay('connect')} onReset={() => setLayout(defaultLayout)} onComponents={() => setOverlay('components')}
+        onChoose={real.choose} available={available} busy={real.busy} onSave={saveDefaults} saved={saved} />}
     </main>
     <nav className="bottom-nav" aria-label="Espaces HMP">
       {pages.map(({ id, title, icon: Icon }) => <button key={id} aria-current={id === page ? 'page' : undefined} onClick={() => setPage(id)}>
@@ -237,7 +293,7 @@ function App() {
       </button>)}
     </nav>
     <footer className="status-bar">
-      <span><Activity size={13} />{demo ? 'Données fictives · aucun transfert physique' : activeDeck ? activeDeck.recorder.host : 'Aucun appareil sélectionné'}</span>
+      <span><Activity size={13} />{demo ? 'Données fictives · aucun transfert physique' : realRunning ? 'Transferts réels en cours' : activeDeck ? activeDeck.recorder.host : 'Aucun appareil sélectionné'}</span>
       <span><Info size={13} />V2 Preview <span className="mono">{info?.version ?? '0.1.0'}</span></span>
     </footer>
     {overlay === 'connect' && <Modal title="Identifier un HyperDeck" onClose={() => setOverlay(undefined)}>
@@ -248,7 +304,7 @@ function App() {
         setPage('media')
       }} />
     </Modal>}
-    {overlay === 'options' && <Modal title="Options du lot" onClose={() => setOverlay(undefined)}>{transferOptions}</Modal>}
+    {overlay === 'options' && <Modal title="Options du lot" onClose={() => setOverlay(undefined)}>{!demo && real.feedback && <div className="callout error" role="alert">{real.feedback}</div>}{transferOptions}</Modal>}
     {overlay === 'components' && <Modal title="Planche des composants" wide onClose={() => setOverlay(undefined)}><ComponentBoard /></Modal>}
   </div>
 }

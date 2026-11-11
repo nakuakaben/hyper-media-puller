@@ -43,3 +43,7 @@ La Preview démarre en navigation FTP réelle sans appareil. Le bouton **Ouvrir 
 ## Attributions
 
 Les tokens RWA 0.8.1 proviennent du fichier local validé `src/ui-contract/ui.tokens.css`. Son SHA-256 est `770a8d4ae3fff8ba02f6c49845d14eb551e3cb01f3823ac2c768986d40fc3a87`. Les composants et la grille sont implémentés pour HMP. Les PNG appareils et l’icône proviennent des actifs HMP existants. Inter est embarquée sous OFL et les icônes d’interface utilisent Lucide. Les textes de licence figurent dans [v2/desktop/licenses](../v2/desktop/licenses/). La [validation du lot 4](LOT4_VALIDATION_REPORT.md) documente les captures et les écarts.
+
+## Évolution lot 5
+
+Les paragraphes précédents décrivent la Preview du lot 4. Le lot 5 ajoute la sélection de dossier native, la file réelle, le suivi par snapshot et les rapports de session. La référence du bridge et le parcours à jour sont décrits dans [Offloads réels HMP V2](REAL_TRANSFER_IMPLEMENTATION.md).

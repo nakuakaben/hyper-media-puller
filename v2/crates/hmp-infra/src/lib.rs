@@ -10,3 +10,5 @@ mod discovery;
 mod ftp;
 pub use discovery::{DeckIdentity, HyperDeckDiscovery};
 pub use ftp::{FtpCredentials, FtpRemote};
+mod local;
+pub use local::LocalDestination;
