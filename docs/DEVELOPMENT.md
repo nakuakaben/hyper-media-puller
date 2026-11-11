@@ -58,3 +58,7 @@ L'exemple et les tests utilisent uniquement des sources fictives et des réperto
 ## FTP Rust et qualification matérielle
 
 Depuis la racine, lancer le banc en boucle locale avec `cargo test --locked --manifest-path v2/Cargo.toml -p hmp-infra --test ftp_wire`. Il réutilise les fixtures V1 et le moteur de transfert Rust. Le workflow Rust core exécute le workspace Rust et les tests de caractérisation Electron sur macOS et Windows. Pour identifier un appareil et tester un média choisi en lecture seule, suivre la [procédure de qualification](RUST_FTP_IMPLEMENTATION.md).
+
+### Tauri V2 Preview
+
+Depuis `v2/desktop`, exécuter `npm ci`, `npm test`, `npm run build` et `npm run tauri -- dev`. Utiliser Node 24.22.0, Rust 1.99.1 et les prérequis natifs Tauri. Le workspace et les lockfiles de la coque sont indépendants du moteur et de la V1. Voir [l’implémentation Tauri](TAURI_UI_IMPLEMENTATION.md) pour construire l’exécutable macOS, la compilation Windows et le périmètre du bridge.
