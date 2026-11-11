@@ -14,4 +14,8 @@ Ne publier aucun secret ni configuration userData. Ne pas modifier la version im
 
 ## Intégration GitHub
 
-Ouvrir les PR prêtes pour revue et attendre toutes les vérifications obligatoires sur le commit proposé. Vérifier les protections et les éventuelles revues requises. Utiliser l'auto-merge Squash si le dépôt l'autorise. Si l'option est indisponible, examiner son activation sans affaiblir les protections, puis utiliser la fusion Squash ordinaire lorsque les validations et droits le permettent. Corriger les échecs et relancer les contrôles. Les releases suivent une validation distincte et la qualification matérielle reste obligatoire pour déclarer la compatibilité HyperDeck.
+Ouvrir les PR prêtes pour revue et attendre toutes les vérifications obligatoires sur le commit proposé. Vérifier les protections, les conflits et les éventuelles revues requises. Dès que les contrôles passent et que la PR est fusionnable, effectuer directement un Squash and merge. Le processus ne dépend pas du réglage GitHub `allow_auto_merge`. Corriger les échecs récupérables et relancer les contrôles. Ne jamais forcer une fusion, contourner une protection ou publier automatiquement une release.
+
+## Qualification HyperDeck
+
+Maintenir les essais synthétiques legacy et les garanties SAFE-01 à SAFE-12. Le Studio Mini 2017 est actuellement indisponible. Sa qualification physique reste au backlog et ne bloque pas les lots de développement. Une déclaration de compatibilité matérielle exige des résultats physiques. Chaque release documente les modèles effectivement testés et les modèles dont la compatibilité reste à vérifier.

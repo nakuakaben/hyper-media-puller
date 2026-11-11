@@ -1,0 +1,6 @@
+{
+  "identifier": "preview",
+  "description": "Local HMP Preview metadata and read-only HyperDeck browsing.",
+  "windows": ["main"],
+  "permissions": ["allow-preview-info", "allow-identify-deck", "allow-list-media"]
+}

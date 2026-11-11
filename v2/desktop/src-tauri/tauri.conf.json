@@ -1,0 +1,35 @@
+{
+  "productName": "HyperDeck Media Puller V2 Preview",
+  "version": "0.1.0",
+  "identifier": "fr.tktprod.hyperdeck-media-puller.v2.preview",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build",
+    "devUrl": "http://127.0.0.1:1420",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "HyperDeck Media Puller · V2 Preview",
+        "width": 1280,
+        "height": 760,
+        "minWidth": 960,
+        "minHeight": 620,
+        "backgroundColor": "#09090b",
+        "theme": "Dark",
+        "dragDropEnabled": false
+      }
+    ],
+    "security": {
+      "capabilities": ["preview"],
+      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "app",
+    "icon": ["icons/icon.png", "icons/icon.ico", "icons/icon.icns"]
+  }
+}

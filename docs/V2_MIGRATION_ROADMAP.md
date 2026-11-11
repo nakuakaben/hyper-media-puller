@@ -109,3 +109,11 @@ La prochaine étape est le lot 3 FTP réel, **après validation utilisateur**. L
 ## Lot 3 FTP réel
 
 Le moteur Rust dispose d’un adaptateur de lecture FTP et d’une découverte HyperDeck sur IPv4 locale. Le banc TCP synthétique rejoue les cas legacy du lot 1 et vérifie le passage par les garanties de publication du lot 2. La qualification du Studio Mini 2017 et des autres appareils physiques reste le prochain jalon avant toute déclaration de compatibilité définitive et toute release. [Implémentation](RUST_FTP_IMPLEMENTATION.md) · [Validation](LOT3_VALIDATION_REPORT.md)
+
+## Lot 4 · Tauri V2 Preview
+
+La coque native et ses quatre espaces sont décrits dans [TAURI_UI_IMPLEMENTATION.md](TAURI_UI_IMPLEMENTATION.md) et vérifiés dans [LOT4_VALIDATION_REPORT.md](LOT4_VALIDATION_REPORT.md). Le bridge expose l’identification et le listing FTP. Le raccordement des transferts réels, des destinations et des rapports de production reste au lot 5.
+
+La qualification physique du Studio Mini 2017 est reportée au backlog pendant son indisponibilité. Les lots de développement continuent avec le corpus synthétique legacy et les garanties SAFE. Documenter, dans chaque future release, les modèles testés physiquement et ceux dont la compatibilité reste non vérifiée.
+
+La fusion se fait directement en Squash après réussite de tous les contrôles obligatoires et vérification de l’absence de conflit ou revue bloquante, indépendamment du réglage GitHub `allow_auto_merge`.

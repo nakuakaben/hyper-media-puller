@@ -34,3 +34,5 @@ Les jobs GitHub Actions utilisent macOS ARM64 et Windows x64. Ils exécutent for
 ## Matériel restant à qualifier
 
 Le Studio Mini 2017 et un HyperDeck récent restent à tester sur le réseau réel. Le banc synthétique couvre les réponses historiques connues, avec un format de listing POSIX, un format DOS et une identification simulée. La qualification du firmware réel, des noms non UTF-8, du réseau multicarte, de la concurrence entre deux appareils physiques et des médias de plus de 4 Gio reste ouverte. La destination utilisée ici est le bac à sable de test du lot 2. La qualification définitive et la release dépendent du passage de ces essais matériels. [Scénarios HW-01 à HW-07](FTP_LEGACY_TEST_MATRIX.md)
+
+**Suivi lot 4.** Le Studio Mini 2017 est indisponible. Les essais matériels restent au backlog de qualification et les lots de développement continuent sur le banc synthétique. Les futures releases distingueront les modèles réellement testés des modèles dont la compatibilité reste à vérifier.
