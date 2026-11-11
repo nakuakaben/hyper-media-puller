@@ -9,7 +9,9 @@ publish.workspace = true
 hmp-domain.workspace = true
 hmp-core.workspace = true
 async-trait.workspace = true
-tokio.workspace = true
+tokio = { workspace = true, features = ["net", "io-util"] }
+if-addrs = "=0.14.0"
+sha2.workspace = true
 tempfile.workspace = true
 
 [dev-dependencies]
@@ -22,3 +24,7 @@ path = "../../tests/safety.rs"
 
 [lints]
 workspace = true
+
+[[test]]
+name = "ftp_wire"
+path = "../../tests/ftp_wire.rs"

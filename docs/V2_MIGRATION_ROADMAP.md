@@ -105,3 +105,7 @@ Le lot 2 a été autorisé puis implémenté : quatre crates Rust, moteur indép
 Écart de base traité explicitement : le main constaté contenait la préparation fusionnée mais pas le lot 1 (PR #2 fermée sans fusion). Le lot 1 a été repris dans la nouvelle branche avant le cœur Rust, sans modifier main ni rouvrir/fusionner les anciennes PR.
 
 La prochaine étape est le lot 3 FTP réel, **après validation utilisateur**. Le moteur simulé ne lève pas le jalon matériel Studio Mini 2017. Ajouter au lot d'infrastructure la destination de production : confinement filesystem, I/O asynchrones, atomicité et durabilité sur les volumes réellement supportés. L'adaptateur TempDir du lot 2 reste réservé aux tests. La refonte UI et l'intégration Tauri restent hors de ce livrable ; aucune reprise persistante après crash n'est annoncée.
+
+## Lot 3 FTP réel
+
+Le moteur Rust dispose d’un adaptateur de lecture FTP et d’une découverte HyperDeck sur IPv4 locale. Le banc TCP synthétique rejoue les cas legacy du lot 1 et vérifie le passage par les garanties de publication du lot 2. La qualification du Studio Mini 2017 et des autres appareils physiques reste le prochain jalon avant toute déclaration de compatibilité définitive et toute release. [Implémentation](RUST_FTP_IMPLEMENTATION.md) · [Validation](LOT3_VALIDATION_REPORT.md)
