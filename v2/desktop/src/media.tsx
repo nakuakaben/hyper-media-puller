@@ -101,19 +101,20 @@ export function MediaBrowser({ deck, path, listing, selected, setSelected, navig
   </Panel>
 }
 
-export function TransferOptions({ demo, values, onChange, count, bytes, onAdd }: {
+export function TransferOptions({ demo, values, onChange, count, bytes, onAdd, onChoose, available, busy }: {
   demo: boolean; values: Preferences; onChange: (p: Preferences) => void
   count: number; bytes: string | null; onAdd: () => void
+  onChoose: () => void; available?: string; busy: boolean
 }) {
   return <Panel title="Destination et options" icon={SlidersHorizontal}>
     <div className="panel-body stack">
-      <Destination demo={demo} values={values} onChange={onChange} />
+      <Destination demo={demo} values={values} onChange={onChange} onChoose={onChoose} available={available} busy={busy} />
       <hr />
       <Options values={values} onChange={onChange} />
       <div className="selection-summary"><Clapperboard size={17} /><div><strong>{count} fichier(s) sélectionné(s)</strong>
         <span className="mono">{bytes === null ? 'Taille inconnue' : formatBytes(bytes)}</span></div></div>
-      <button className="primary" disabled={!demo || !count || !values.destination.trim()} onClick={onAdd}><ListPlus size={15} />Ajouter à la file</button>
-      <p className="hint">{demo ? 'File de démonstration. Aucune écriture sur le disque.' : 'Navigation FTP active. Les transferts seront raccordés dans un lot suivant.'}</p>
+      <button className="primary" disabled={busy || !count || !values.destination.trim()} onClick={onAdd}><ListPlus size={15} />Ajouter à la file</button>
+      <p className="hint">{demo ? 'File de démonstration. Aucune écriture sur le disque.' : 'La destination, les doublons et les checksums sont figés à la création du lot.'}</p>
     </div>
   </Panel>
 }

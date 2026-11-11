@@ -28,6 +28,12 @@ jobs:
           components: rustfmt, clippy
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - name: Identify Windows test volume
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $drive = [System.IO.Path]::GetPathRoot([System.IO.Path]::GetTempPath()).Substring(0, 1)
+          Get-Volume -DriveLetter $drive | Select-Object DriveLetter, FileSystem
       - run: cargo test --workspace --locked
       - run: cargo build --workspace --locked
   electron:

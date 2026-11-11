@@ -1,6 +1,19 @@
 {
   "identifier": "preview",
-  "description": "Local HMP Preview metadata and read-only HyperDeck browsing.",
-  "windows": ["main"],
-  "permissions": ["allow-preview-info", "allow-identify-deck", "allow-list-media"]
+  "description": "HMP V2 native destination selection, read-only FTP and transfer queue.",
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "allow-preview-info",
+    "allow-identify-deck",
+    "allow-list-media",
+    "allow-transfer-settings",
+    "allow-choose-destination",
+    "allow-save-transfer-options",
+    "allow-enqueue-transfer",
+    "allow-transfer-action",
+    "allow-transfer-queue",
+    "allow-transfer-report"
+  ]
 }

@@ -62,3 +62,7 @@ Depuis la racine, lancer le banc en boucle locale avec `cargo test --locked --ma
 ### Tauri V2 Preview
 
 Depuis `v2/desktop`, exécuter `npm ci`, `npm test`, `npm run build` et `npm run tauri -- dev`. Utiliser Node 24.22.0, Rust 1.99.1 et les prérequis natifs Tauri. Le workspace et les lockfiles de la coque sont indépendants du moteur et de la V1. Voir [l’implémentation Tauri](TAURI_UI_IMPLEMENTATION.md) pour construire l’exécutable macOS, la compilation Windows et le périmètre du bridge.
+
+### Offload V2 réel
+
+Le parcours de lancement Tauri reste le même. Depuis la racine, `cargo test --manifest-path v2/Cargo.toml --workspace --locked` exerce les garanties SAFE, le banc FTP et les destinations locales. Depuis `v2/desktop`, `npm test` et `cargo test --manifest-path src-tauri/Cargo.toml --locked` vérifient la démonstration et l’IPC Tauri. Pour cibler un volume de test compatible, définir `HMP_TEST_VOLUME` sur son dossier de test et lancer `cargo test --manifest-path v2/Cargo.toml --locked --test local_destination` depuis la racine. Les tests créent leurs propres sous-dossiers temporaires. Voir [le parcours et le format de rapport](REAL_TRANSFER_IMPLEMENTATION.md) et [la validation](LOT5_VALIDATION_REPORT.md).

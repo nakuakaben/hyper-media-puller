@@ -9,10 +9,18 @@ publish.workspace = true
 hmp-domain.workspace = true
 hmp-core.workspace = true
 async-trait.workspace = true
-tokio = { workspace = true, features = ["net", "io-util"] }
+tokio = { workspace = true, features = ["net", "io-util", "fs"] }
 if-addrs = "=0.14.0"
 sha2.workspace = true
 tempfile.workspace = true
+cap-std = "=3.4.5"
+
+[target.'cfg(unix)'.dependencies]
+rustix = { version = "=1.1.6", features = ["fs"] }
+
+[target.'cfg(windows)'.dependencies]
+fs2 = "=0.4.3"
+same-file = "=1.0.6"
 
 [dev-dependencies]
 hmp-contract = { path = "../hmp-contract" }
@@ -28,3 +36,7 @@ workspace = true
 [[test]]
 name = "ftp_wire"
 path = "../../tests/ftp_wire.rs"
+
+[[test]]
+name = "local_destination"
+path = "../../tests/local_destination.rs"

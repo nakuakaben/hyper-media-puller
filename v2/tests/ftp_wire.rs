@@ -464,6 +464,24 @@ fn engine(ftp: FtpRemote) -> (Engine, Arc<SandboxDestination>) {
     .unwrap();
     (engine, disk)
 }
+async fn production_engine(
+    root: &std::path::Path,
+    ftp: FtpRemote,
+) -> (Engine, Arc<LocalDestination>) {
+    let disk = Arc::new(LocalDestination::open(root.to_owned()).await.unwrap());
+    let engine = Engine::spawn(
+        EnginePorts {
+            remote: Arc::new(ftp),
+            destination: disk.clone(),
+            events: Arc::new(RecordingSink::default()),
+            clock: Arc::new(StepClock::default()),
+            ids: Arc::new(SequentialIds::default()),
+        },
+        EngineConfig::default(),
+    )
+    .unwrap();
+    (engine, disk)
+}
 fn request(server: &Server, expected: Option<u64>) -> JobRequest {
     let recorder = server.recorder.clone();
     let entry = MediaEntry::new(recorder.id(), path(FILE), expected, false).unwrap();
@@ -540,7 +558,8 @@ async fn multiple_recorders_stream_and_verify_without_destination_collision() {
         );
         session.close().await.unwrap();
     }
-    let (engine, disk) = engine(ftp);
+    let folder = tempfile::tempdir().unwrap();
+    let (engine, _) = production_engine(folder.path(), ftp).await;
     start(&engine, jobs, ChecksumMode::Both).await;
     let snapshot = settled(&engine).await;
     for (job, expected) in snapshot.jobs.iter().zip([b"DATA", b"MORE"]) {
@@ -549,10 +568,7 @@ async fn multiple_recorders_stream_and_verify_without_destination_collision() {
             job.checksum().unwrap().scope,
             VerificationScope::TransferStreamComparedToLocal
         );
-        assert_eq!(
-            disk.final_bytes(&name(job.destination().unwrap())).unwrap(),
-            expected
-        );
+        assert_eq!(std::fs::read(job.destination().unwrap()).unwrap(), expected);
     }
     assert_ne!(
         snapshot.jobs[0].destination(),
@@ -780,4 +796,56 @@ async fn discovery_refuses_public_and_oversized_ranges_and_honors_cancellation()
             .code,
         ErrorCode::Cancelled
     );
+}
+
+#[tokio::test]
+async fn real_destination_survives_interruption_and_shutdown_while_another_deck_finishes() {
+    let paused = Server::start(
+        201,
+        Script {
+            completion: Completion::HoldData,
+            payload: b"partial".to_vec(),
+            ..Default::default()
+        },
+    )
+    .await;
+    let interrupted = Server::start(
+        202,
+        Script {
+            completion: Completion::Interrupted,
+            payload: b"interrupted".to_vec(),
+            ..Default::default()
+        },
+    )
+    .await;
+    let healthy = Server::start(203, Script::default()).await;
+    let folder = tempfile::tempdir().unwrap();
+    let (engine, disk) = production_engine(folder.path(), client()).await;
+    start(
+        &engine,
+        vec![
+            request(&paused, None),
+            request(&interrupted, None),
+            request(&healthy, None),
+        ],
+        ChecksumMode::Both,
+    )
+    .await;
+    let state = wait(&engine, |snapshot| {
+        snapshot.jobs[0].progress().written > 0
+            && snapshot.jobs[1].status() == TransferStatus::Error
+            && snapshot.jobs[2].status() == TransferStatus::Verified
+    })
+    .await;
+    assert_eq!(state.jobs[1].error().unwrap().protocol_code, Some(426));
+    assert_eq!(state.jobs[0].status(), TransferStatus::Running);
+    let closed = engine.shutdown().await.unwrap();
+    assert_eq!(closed.active, 0);
+    assert_eq!(closed.jobs[0].status(), TransferStatus::Cancelled);
+    for job in &closed.jobs[..2] {
+        assert!(job.destination().is_none());
+        assert!(disk.staging_path().join(job.partial_name()).is_file());
+    }
+    assert!(std::path::Path::new(closed.jobs[2].destination().unwrap()).is_file());
+    assert_eq!(std::fs::read_dir(folder.path()).unwrap().count(), 2);
 }

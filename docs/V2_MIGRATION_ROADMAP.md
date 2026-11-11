@@ -117,3 +117,7 @@ La coque native et ses quatre espaces sont décrits dans [TAURI_UI_IMPLEMENTATIO
 La qualification physique du Studio Mini 2017 est reportée au backlog pendant son indisponibilité. Les lots de développement continuent avec le corpus synthétique legacy et les garanties SAFE. Documenter, dans chaque future release, les modèles testés physiquement et ceux dont la compatibilité reste non vérifiée.
 
 La fusion se fait directement en Squash après réussite de tous les contrôles obligatoires et vérification de l’absence de conflit ou revue bloquante, indépendamment du réglage GitHub `allow_auto_merge`.
+
+## Lot 5 · Offloads réels
+
+La Preview raccorde la destination native, les transferts Rust FTP et le rapport de session JSON versionné. La file, la destination et les options sont exposées par IPC typé. Le moteur conserve ses garanties SAFE et Electron V1 reste inchangé. Le Studio Mini 2017, les partages réseau, les retraits de volume et l’interface interactive Windows restent à qualifier. Les limites APFS, NTFS et exFAT sont suivies dans le [rapport du lot 5](LOT5_VALIDATION_REPORT.md).

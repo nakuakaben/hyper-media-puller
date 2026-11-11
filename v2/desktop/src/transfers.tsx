@@ -1,6 +1,7 @@
 import { ArrowUpRight, ChevronRight, FileCheck2, FileClock, ListChecks, Pause, Play, RotateCcw, X } from 'lucide-react'
 import { useState } from 'react'
-import type { Job } from './contracts'
+import { scopeLabel, terminal, type Batch, type BatchDetails, type Job, type LiveJob, type TransferAction } from './contracts'
+import type { Rate } from './offload'
 import { formatBytes } from './demo'
 import { Badge, Empty, Panel, ProgressCell, statuses } from './ui'
 
@@ -32,8 +33,8 @@ function JobTable({ jobs, names, selected, onSelect, compact = false }: {
           <td><Badge label={status.label} tone={status.tone} /></td>
           <td><ProgressCell job={job} phase="copy" /></td>
           <td><ProgressCell job={job} phase="verify" /></td>
-          <td className="mono"><span className="truncate" title={job.requested_destination}>
-            {compact ? formatBytes(job.progress.total) : job.requested_destination}
+          <td className="mono"><span className="truncate" title={'destination' in job ? (job as LiveJob).destination ?? job.requested_destination : job.requested_destination}>
+            {compact ? formatBytes(job.progress.total) : 'destination' in job ? (job as LiveJob).destination ?? job.requested_destination : job.requested_destination}
           </span></td>
         </tr>
       })}</tbody>
@@ -50,13 +51,22 @@ export function CompactQueue({ jobs, names, onOpen }: Pick<QueueProps, 'jobs' | 
   </Panel>
 }
 
-export function Transfers({ jobs, names, demo, selected, onSelect, onCancel, onRetry, playing, onPlayback }: QueueProps & {
-  selected?: string; onSelect: (id: string) => void; playing: boolean; onPlayback: () => void
+export function Transfers({ jobs, names, demo, selected, preferredBatch, onSelect, onCancel, onRetry, playing, onPlayback,
+  batches, destinations, rates, onAction, busy }: QueueProps & {
+  selected?: string; preferredBatch?: string; onSelect: (id: string) => void; playing: boolean; onPlayback: () => void
+  batches: Batch[]; destinations: BatchDetails[]; rates: Record<string, Rate>
+  onAction: (action: TransferAction, id: string) => void; busy: boolean
 }) {
   const [recorder, setRecorder] = useState('')
   const [status, setStatus] = useState('')
   const visible = jobs.filter(job => (!recorder || job.recorder_id === recorder) && (!status || job.status === status))
-  const job = visible.find(item => item.id === selected) ?? visible[0]
+  const job = visible.find(item => item.id === selected)
+    ?? (preferredBatch && !demo ? visible.find(item => (item as LiveJob).batch_id === preferredBatch) : visible[0])
+  const live = job && !demo ? job as LiveJob : undefined
+  const batch = batches.find(item => item.id === live?.batch_id)
+  const destination = destinations.find(item => item.id === live?.batch_id)
+  const rate = live && rates[live.id]
+  const hasPending = jobs.some(item => (item as LiveJob).batch_id === batch?.id && item.status === 'pending')
   return <div className="two-pane">
     <Panel title="File de transfert" icon={ListChecks} meta={visible.length + ' / ' + jobs.length}
       actions={demo && <button onClick={onPlayback}>{playing ? <Pause size={14} /> : <Play size={14} />}
@@ -82,12 +92,28 @@ export function Transfers({ jobs, names, demo, selected, onSelect, onCancel, onR
         <dl className="key-values">
           <dt>Source</dt><dd className="mono break-path">{job.remote_path}</dd>
           <dt>HyperDeck</dt><dd>{names[job.recorder_id]}</dd>
-          <dt>Nom prévu</dt><dd className="mono break-path">{job.requested_destination}</dd>
-          <dt>Taille</dt><dd className="mono">{formatBytes(job.progress.total)}</dd>
+          <dt>{live?.destination ? 'Destination' : 'Nom prévu'}</dt><dd className="mono break-path">{live?.destination ?? job.requested_destination}</dd>
+          {destination && !live?.destination && <><dt>Dossier du lot</dt><dd className="mono break-path">{destination.destination}</dd></>}
+          <dt>Taille attendue</dt><dd className="mono">{formatBytes(job.progress.total)}</dd>
+          {live && <><dt>Octets écrits</dt><dd className="mono">{formatBytes(live.progress.written)}</dd></>}
+          {rate && <><dt>Débit</dt><dd className="mono">{formatBytes(String(rate.bytesPerSecond))}/s</dd>
+            {rate.secondsLeft !== undefined && <><dt>Temps restant</dt><dd className="mono">{rate.secondsLeft} s</dd></>}
+          </>}
         </dl>
         <label className="field-label">Copie<ProgressCell job={job} phase="copy" /></label>
         <label className="field-label">Vérification<ProgressCell job={job} phase="verify" /></label>
-        {job.error && <div className="callout error" role="status"><strong>{job.error.code} · {job.error.phase}</strong>{job.error.message}</div>}
+        {job.error && <div className="callout error" role="status"><strong>{job.error.code} · {job.error.phase}{job.error.protocol_code ? ' · FTP ' + job.error.protocol_code : ''}</strong>{job.error.message}</div>}
+        {live?.checksum && <p>{scopeLabel(live.checksum.scope)}</p>}
+        {live?.status === 'skipped' && <p>Fichier existant ignoré. Son contenu reste non vérifié.</p>}
+        {live && <div className="row">
+          {batch?.started && <button disabled={busy} onClick={() => onAction('pause', batch.id)}><Pause size={14} />Mettre le lot en pause</button>}
+          {batch && !batch.started && hasPending && <button className="primary" disabled={busy} onClick={() => onAction('start', batch.id)}>
+            <Play size={14} />Démarrer / reprendre le lot
+          </button>}
+          {!terminal(live.status) && live.status !== 'finalizing' && <button disabled={busy} onClick={() => onAction('cancel', live.id)}><X size={14} />Annuler</button>}
+          {(['cancelled', 'error', 'checksum_error'].includes(live.status)) && <button disabled={busy} onClick={() => onAction('retry', live.id)}><RotateCcw size={14} />Réessayer</button>}
+        </div>}
+        {batch?.started && <p className="hint">La pause laisse les copies actives se terminer.</p>}
         {demo && <div className="row">
           {['pending', 'running', 'verifying'].includes(job.status) && <button onClick={() => onCancel(job.id)}><X size={14} />Annuler</button>}
           {(job.status === 'cancelled' || job.error?.retryable) && <button onClick={() => onRetry(job.id)}><RotateCcw size={14} />Remettre en file</button>}

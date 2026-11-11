@@ -112,6 +112,9 @@ pub enum ReservationOutcome {
 }
 #[async_trait]
 pub trait DestinationPort: Send + Sync {
+    async fn check_space(&self, _expected: Option<u64>) -> Result<()> {
+        Ok(())
+    }
     async fn reserve(
         &self,
         name: &LocalName,

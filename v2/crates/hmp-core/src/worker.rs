@@ -374,6 +374,13 @@ pub(crate) async fn run(
             ReservationOutcome::Reserved(reservation) => reservation,
         };
         lease.reservation = Some(reservation.clone());
+        guarded(
+            ports.destination.check_space(job.request().media().size()),
+            &cancel,
+            &config,
+            Phase::Planning,
+        )
+        .await?;
         let context = TransferContext {
             job: &job,
             options: &options,

@@ -44,10 +44,18 @@ pub struct Subscription {
 pub struct Engine {
     commands: mpsc::Sender<Command>,
 }
+/// Destination and concurrency policy captured with a batch.
+#[derive(Clone)]
+pub struct BatchExecution {
+    pub destination: Arc<dyn DestinationPort>,
+    pub config: EngineConfig,
+}
+
 enum Command {
     Enqueue(
         Vec<JobRequest>,
         BatchOptions,
+        Option<BatchExecution>,
         oneshot::Sender<Result<BatchId>>,
     ),
     Control(BatchId, bool, oneshot::Sender<Result<()>>),
@@ -77,6 +85,7 @@ impl Engine {
                 events,
                 verification,
                 batches: BTreeMap::new(),
+                execution: BTreeMap::new(),
                 jobs: BTreeMap::new(),
                 order: vec![],
                 active: BTreeMap::new(),
@@ -99,7 +108,17 @@ impl Engine {
         requests: Vec<JobRequest>,
         options: BatchOptions,
     ) -> Result<BatchId> {
-        self.request(|reply| Command::Enqueue(requests, options, reply))
+        self.request(|reply| Command::Enqueue(requests, options, None, reply))
+            .await?
+    }
+    pub async fn enqueue_with_destination(
+        &self,
+        requests: Vec<JobRequest>,
+        options: BatchOptions,
+        execution: BatchExecution,
+    ) -> Result<BatchId> {
+        execution.config.validate()?;
+        self.request(|reply| Command::Enqueue(requests, options, Some(execution), reply))
             .await?
     }
     pub async fn start(&self, batch: BatchId) -> Result<()> {
@@ -140,6 +159,7 @@ struct Actor {
     events: broadcast::Sender<EngineEvent>,
     verification: Arc<Semaphore>,
     batches: BTreeMap<BatchId, BatchSnapshot>,
+    execution: BTreeMap<BatchId, BatchExecution>,
     jobs: BTreeMap<JobId, TransferJob>,
     order: Vec<JobId>,
     active: BTreeMap<JobId, Active>,
@@ -180,7 +200,12 @@ impl Actor {
         }
         Ok(id)
     }
-    fn enqueue(&mut self, requests: Vec<JobRequest>, options: BatchOptions) -> Result<BatchId> {
+    fn enqueue(
+        &mut self,
+        requests: Vec<JobRequest>,
+        options: BatchOptions,
+        execution: Option<BatchExecution>,
+    ) -> Result<BatchId> {
         if self.shutting_down {
             return Err(closed());
         }
@@ -209,6 +234,9 @@ impl Actor {
                 started: false,
             },
         );
+        if let Some(execution) = execution {
+            self.execution.insert(batch_id, execution);
+        }
         self.emit(EventKind::BatchCreated(batch));
         for job in jobs {
             let id = job.id();
@@ -247,8 +275,8 @@ impl Actor {
     }
     fn command(&mut self, command: Command) {
         match command {
-            Command::Enqueue(requests, options, reply) => {
-                let value = self.enqueue(requests, options);
+            Command::Enqueue(requests, options, execution, reply) => {
+                let value = self.enqueue(requests, options, execution);
                 let _ = reply.send(value);
             }
             Command::Control(id, start, reply) => {
@@ -322,26 +350,32 @@ impl Actor {
             return;
         }
         for id in self.order.clone() {
-            if self.active.len() >= self.config.global_limit {
-                break;
-            }
             let job = &self.jobs[&id];
             if job.status() != TransferStatus::Pending || !self.batches[&job.batch()].started {
                 continue;
             }
+            let batch = job.batch();
+            let config = self.batch_config(batch).clone();
             let recorder = job.request().recorder().id();
-            let network = self
-                .active
-                .iter()
-                .filter(|(other, active)| {
-                    active.network && self.jobs[other].request().recorder().id() == recorder
-                })
-                .count();
-            if network >= self.config.recorder_limit {
+            let mut global_limit = config.global_limit;
+            let mut recorder_limit = config.recorder_limit;
+            let mut network = 0;
+            for (other, active) in &self.active {
+                let other_job = &self.jobs[other];
+                let other_config = self.batch_config(other_job.batch());
+                global_limit = global_limit.min(other_config.global_limit);
+                if active.network && other_job.request().recorder().id() == recorder {
+                    network += 1;
+                    recorder_limit = recorder_limit.min(other_config.recorder_limit);
+                }
+            }
+            if self.active.len() >= global_limit || network >= recorder_limit {
                 continue;
             }
             let attempt = job.attempt();
-            let options = self.batches[&job.batch()].batch.options().clone();
+            let options = self.batches[&batch].batch.options().clone();
+            let mut ports = self.ports.clone();
+            ports.destination = self.destination(id);
             let cancel = Cancellation::default();
             let job = self.jobs.get_mut(&id).expect("scheduled job");
             job.transition(attempt, TransferStatus::Running)
@@ -359,19 +393,33 @@ impl Actor {
             tokio::spawn(worker::run(
                 running_job,
                 options,
-                self.ports.clone(),
-                self.config.clone(),
+                ports,
+                config,
                 self.verification.clone(),
                 cancel,
                 self.worker_tx.clone(),
             ));
         }
     }
+    fn batch_config(&self, batch: BatchId) -> &EngineConfig {
+        self.execution
+            .get(&batch)
+            .map_or(&self.config, |entry| &entry.config)
+    }
+    fn destination(&self, job: JobId) -> Arc<dyn DestinationPort> {
+        self.jobs
+            .get(&job)
+            .and_then(|job| self.execution.get(&job.batch()))
+            .map_or_else(
+                || self.ports.destination.clone(),
+                |entry| entry.destination.clone(),
+            )
+    }
     fn message(&mut self, message: worker::Message) {
         let (id, attempt) = message.identity();
         if self.active.get(&id).is_none_or(|a| a.attempt != attempt) {
             if let worker::Message::Ready { reservation, .. } = message {
-                self.ports.destination.release(&reservation);
+                self.destination(id).release(&reservation);
             }
             return;
         }
@@ -387,7 +435,7 @@ impl Actor {
                     | worker::Message::Skipped { .. }
             );
             if let worker::Message::Ready { reservation, .. } = message {
-                self.ports.destination.release(&reservation);
+                self.destination(id).release(&reservation);
             }
             if finished {
                 self.active.remove(&id);
@@ -428,7 +476,7 @@ impl Actor {
                     .expect("ready job");
                 self.job_event(id);
                 // No await here: publication and terminal transition are one actor turn.
-                let result = self.ports.destination.commit(
+                let result = self.destination(id).commit(
                     &reservation,
                     self.batches[&self.jobs[&id].batch()]
                         .batch
@@ -454,7 +502,7 @@ impl Actor {
                             .expect("finalizing job");
                     }
                 }
-                self.ports.destination.release(&reservation);
+                self.destination(id).release(&reservation);
                 self.active.remove(&id);
                 self.job_event(id);
             }
