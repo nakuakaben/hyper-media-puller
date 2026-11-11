@@ -54,3 +54,7 @@ cargo run --locked -p hmp-infra --example simulate
 ```
 
 L'exemple et les tests utilisent uniquement des sources fictives et des répertoires temporaires privés ; ils n'ont pas besoin d'HyperDeck ni de paramètres utilisateur. Voir [v2/README.md](../v2/README.md), [l'implémentation](RUST_CORE_IMPLEMENTATION.md) et [le rapport lot 2](LOT2_VALIDATION_REPORT.md). Ne pas utiliser le sandbox comme adaptateur de destination opérateur. La CI Rust prévoit macOS et Windows sans installer Electron.
+
+## FTP Rust et qualification matérielle
+
+Depuis la racine, lancer le banc en boucle locale avec `cargo test --locked --manifest-path v2/Cargo.toml -p hmp-infra --test ftp_wire`. Il réutilise les fixtures V1 et le moteur de transfert Rust. Le workflow Rust core exécute le workspace Rust et les tests de caractérisation Electron sur macOS et Windows. Pour identifier un appareil et tester un média choisi en lecture seule, suivre la [procédure de qualification](RUST_FTP_IMPLEMENTATION.md).
