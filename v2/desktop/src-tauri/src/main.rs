@@ -94,14 +94,19 @@ async fn choose_destination(
     state: State<'_, Arc<Offload>>,
 ) -> Result<Option<SettingsView>, ErrorDto> {
     let (tx, rx) = tokio::sync::oneshot::channel();
-    window
+    let dialog = window
         .dialog()
         .file()
         .set_title("Choisir une destination HMP V2")
-        .set_parent(&window)
-        .pick_folder(move |folder| {
-            let _ = tx.send(folder);
-        });
+        .set_parent(&window);
+    #[cfg(all(windows, feature = "windows-qualification"))]
+    let dialog = match windows_qualification::starting_directory() {
+        Some(path) => dialog.set_directory(path),
+        None => dialog,
+    };
+    dialog.pick_folder(move |folder| {
+        let _ = tx.send(folder);
+    });
     let selected = rx
         .await
         .map_err(|_| public_error(TransferError::invalid("Dialogue de destination interrompu")))?;

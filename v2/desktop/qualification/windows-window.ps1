@@ -1,7 +1,6 @@
 param(
   [Parameter(Mandatory)][int]$AppProcess,
-  [Parameter(Mandatory)][ValidateSet('folder', 'resize', 'close')][string]$Action,
-  [string]$Folder
+  [Parameter(Mandatory)][ValidateSet('folder', 'resize', 'close')][string]$Action
 )
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
@@ -23,8 +22,6 @@ public static class Native {
   [DllImport("user32.dll")] static extern int GetDlgCtrlID(IntPtr window);
   [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr window);
   [DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr window);
-  [DllImport("user32.dll", CharSet=CharSet.Unicode)]
-  static extern IntPtr SendMessageTimeout(IntPtr window, uint message, IntPtr wParam, string value, uint flags, uint timeout, out UIntPtr result);
   static string Title(IntPtr window) { var b = new StringBuilder(512); GetWindowText(window, b, b.Capacity); return b.ToString(); }
   static string Class(IntPtr window) { var b = new StringBuilder(128); GetClassName(window, b, b.Capacity); return b.ToString(); }
   public static IntPtr Picker(uint process) {
@@ -48,17 +45,16 @@ public static class Native {
     }, IntPtr.Zero);
     return String.Join(" | ", found.ToArray());
   }
-  public static bool SetFolderName(IntPtr dialog, string folder) {
-    IntPtr edit = IntPtr.Zero;
+  public static IntPtr ConfirmButton(IntPtr dialog) {
+    IntPtr button = IntPtr.Zero;
     EnumChildWindows(dialog, delegate(IntPtr window, IntPtr unused) {
-      if (IsWindowVisible(window) && Class(window) == "Edit" && GetDlgCtrlID(window) == 1001) {
-        edit = window;
+      if (IsWindowVisible(window) && Class(window) == "Button" && GetDlgCtrlID(window) == 1) {
+        button = window;
         return false;
       }
       return true;
     }, IntPtr.Zero);
-    UIntPtr result;
-    return edit != IntPtr.Zero && SendMessageTimeout(edit, 0x000C, IntPtr.Zero, folder, 2, 2000, out result) != IntPtr.Zero;
+    return button;
   }
 
 }
@@ -76,30 +72,25 @@ if ($Action -eq 'folder') {
     throw ("Native folder picker not found. Visible app windows: " + [Native]::Windows($AppProcess))
   }
   $dialog = $automation::FromHandle($handle)
-  $fileName = [System.Windows.Automation.PropertyCondition]::new($property::AutomationIdProperty, '1148')
-  $editType = [System.Windows.Automation.PropertyCondition]::new($property::ControlTypeProperty, [System.Windows.Automation.ControlType]::Edit)
-  $entry = $dialog.FindFirst($scope::Descendants, $fileName)
-  if ($entry -and $entry.Current.ControlType -ne [System.Windows.Automation.ControlType]::Edit) {
-    $entry = $entry.FindFirst($scope::Descendants, $editType)
+  $buttonType = [System.Windows.Automation.PropertyCondition]::new($property::ControlTypeProperty, [System.Windows.Automation.ControlType]::Button)
+  $confirmId = [System.Windows.Automation.PropertyCondition]::new($property::AutomationIdProperty, '1')
+  $confirmName = [System.Windows.Automation.PropertyCondition]::new($property::NameProperty, 'Select Folder')
+  $confirm = [System.Windows.Automation.OrCondition]::new($confirmId, $confirmName)
+  $buttonQuery = [System.Windows.Automation.AndCondition]::new($confirm, $buttonType)
+  $button = $dialog.FindFirst($scope::Descendants, $buttonQuery)
+  if ($button) {
+    $button.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+  } else {
+    $child = [Native]::ConfirmButton($handle)
+    if ($child -ne [IntPtr]::Zero) {
+      [void][Native]::PostMessage($child, 0x00F5, [IntPtr]::Zero, [IntPtr]::Zero)
+    } else {
+      [void][Native]::PostMessage($handle, 0x0111, [IntPtr]1, [IntPtr]::Zero)
+    }
   }
-  if (!$entry) {
-    $id = [System.Windows.Automation.PropertyCondition]::new($property::AutomationIdProperty, '1001')
-    $query = [System.Windows.Automation.AndCondition]::new($id, $editType)
-    $entry = $dialog.FindFirst($scope::Descendants, $query)
-  }
-  if ($entry) {
-    $entry.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue($Folder)
-  } elseif (![Native]::SetFolderName($handle, $Folder)) {
-    throw 'Native folder picker file-name field was not available'
-  }
-  # IDOK goes through the common item dialog's selection and validation path.
-  if (![Native]::PostMessage($handle, 0x0111, [IntPtr]1, [IntPtr]::Zero)) {
-    throw 'Could not confirm the native folder picker'
-  }
-  Start-Sleep -Milliseconds 450
-  if ([Native]::IsWindow($handle)) {
-    [void][Native]::PostMessage($handle, 0x0111, [IntPtr]1, [IntPtr]::Zero)
-  }
+  $deadline = [DateTime]::UtcNow.AddSeconds(8)
+  while ([Native]::IsWindow($handle) -and [DateTime]::UtcNow -lt $deadline) { Start-Sleep -Milliseconds 150 }
+  if ([Native]::IsWindow($handle)) { throw 'The Windows folder picker did not confirm the current directory' }
   Write-Output 'Native Windows folder picker invoked'
   return
 }

@@ -73,6 +73,7 @@ try {
       WEBVIEW2_USER_DATA_FOLDER: join(root, 'webview'),
       WEBVIEW2_BROWSER_EXECUTABLE_FOLDER: process.env.HMP_WEBVIEW2_RUNTIME,
       HMP_WINDOWS_QUALIFICATION: root,
+      HMP_WINDOWS_QUALIFICATION_DESTINATION: destination,
     },
     windowsHide: false,
   })
@@ -109,9 +110,8 @@ try {
     }
   }
   const navigate = name => click(`[...document.querySelectorAll('nav button')].find(b => b.textContent.trim() === ${JSON.stringify(name)})`)
-  async function native(action, folder) {
+  async function native(action) {
     const args = ['-NoProfile', '-NonInteractive', '-Sta', '-ExecutionPolicy', 'Bypass', '-File', windowHelper, '-AppProcess', String(app.pid), '-Action', action]
-    if (folder) args.push('-Folder', folder)
     const result = await execute('powershell.exe', args, { timeout: 26000, windowsHide: true })
     return result.stdout.trim()
   }
@@ -176,7 +176,7 @@ try {
   await showOptions()
   assert.ok(await evaluate(bodyContains('Aucun dossier choisi')), 'Fresh destination profile expected')
   await click(button('Choisir un dossier'))
-  note('Windows native folder picker', await native('folder', destination))
+  note('Windows native folder picker', await native('folder'))
   await dom(bodyContains('Régie extérieure'))
   const shaOption = "[aria-label='Destination et options'] select"
   await evaluate(`(() => {

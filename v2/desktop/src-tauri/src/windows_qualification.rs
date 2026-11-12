@@ -24,6 +24,16 @@ fn respond(root: &Path, id: u64, value: Value) {
     }
 }
 
+pub fn starting_directory() -> Option<PathBuf> {
+    if std::env::var("GITHUB_ACTIONS").as_deref() != Ok("true") {
+        return None;
+    }
+    let root = fs::canonicalize(std::env::var_os("HMP_WINDOWS_QUALIFICATION")?).ok()?;
+    let requested = PathBuf::from(std::env::var_os("HMP_WINDOWS_QUALIFICATION_DESTINATION")?);
+    let folder = fs::canonicalize(&requested).ok()?;
+    (requested.is_absolute() && folder.starts_with(root) && folder.is_dir()).then_some(requested)
+}
+
 pub fn start(window: WebviewWindow) {
     let root = std::env::var_os("HMP_WINDOWS_QUALIFICATION").map(PathBuf::from);
     let Some(root) = root.filter(|path| path.is_absolute() && path.is_dir()) else {
