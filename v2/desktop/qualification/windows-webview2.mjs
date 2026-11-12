@@ -242,7 +242,15 @@ try {
   await addAndStart('annulation.mov')
   await waitFor('FTP data sent for annulation.mov', () => fixture.activeSlowCopies.has('annulation.mov'))
   await dom(`${row('annulation.mov')}?.innerText.includes('Copie')`)
-  await click(button('Annuler'))
+  // Live rate and ETA rows can move this button between pointer events.
+  const cancel = button('Annuler')
+  await dom(`(() => {
+    const control = ${cancel};
+    if (control?.closest('section')?.querySelector('h3')?.textContent !== 'annulation.mov') return false;
+    control.focus();
+    return document.activeElement === control;
+  })()`)
+  await press('Space', 32)
   await dom(`${row('annulation.mov')}?.innerText.includes('Annulé')`)
   assert.ok(!(await readdir(destination)).includes('annulation.mov'))
   note('Cancellation keeps the final name absent')
