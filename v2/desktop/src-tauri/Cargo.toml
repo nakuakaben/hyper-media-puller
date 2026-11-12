@@ -24,3 +24,10 @@ hmp-infra = { path = "../../crates/hmp-infra" }
 
 [dev-dependencies]
 tauri = { version = "=2.12.5", features = ["test"] }
+
+[features]
+windows-qualification = ["dep:webview2-com", "dep:windows-core"]
+
+[target.'cfg(windows)'.dependencies]
+webview2-com = { version = "=0.39.1", optional = true }
+windows-core = { version = "=0.62.2", optional = true }

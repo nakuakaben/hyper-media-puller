@@ -36,6 +36,20 @@ jobs:
           Get-Volume -DriveLetter $drive | Select-Object DriveLetter, FileSystem
       - run: cargo test --workspace --locked
       - run: cargo build --workspace --locked
+      - name: Exercise disposable Windows volumes
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          cargo build --locked -p hmp-infra --example qualify_windows_volume
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & ./desktop/qualification/windows-storage.ps1 -Probe ./target/debug/examples/qualify_windows_volume.exe -Evidence ./desktop/windows-qualification
+      - name: Upload Windows volume evidence
+        if: always() && runner.os == 'Windows'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: windows-storage-qualification
+          path: v2/desktop/windows-qualification/storage.json
+          if-no-files-found: ignore
   electron:
     strategy:
       fail-fast: false
@@ -79,6 +93,28 @@ jobs:
       - run: npm test
       - run: npm run build
       - run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
+      - name: Build the native desktop
+        if: runner.os != 'Windows'
+        run: npm run tauri -- build --debug --no-bundle -- --locked
+      - name: Build the Windows qualification executable
+        if: runner.os == 'Windows'
+        run: npm run tauri -- build --debug --no-bundle --features windows-qualification -- --locked
+      - name: Ensure the Microsoft WebView2 Evergreen Runtime
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./qualification/windows-runtime.ps1
+      - name: Exercise the native Windows WebView2 offload
+        if: runner.os == 'Windows'
+        run: node qualification/windows-webview2.mjs
       - run: cargo clippy --manifest-path src-tauri/Cargo.toml --locked --all-targets -- -D warnings
       - run: cargo test --manifest-path src-tauri/Cargo.toml --locked
-      - run: npm run tauri -- build --debug --no-bundle -- --locked
+      - name: Build the normal Windows executable
+        if: runner.os == 'Windows'
+        run: npm run tauri -- build --debug --no-bundle -- --locked
+      - name: Upload Windows qualification evidence
+        if: always() && runner.os == 'Windows'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: windows-webview2-qualification
+          path: v2/desktop/windows-qualification/
+          if-no-files-found: ignore

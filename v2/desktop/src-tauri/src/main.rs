@@ -2,6 +2,8 @@
 
 use hmp_contract::{ErrorDto, MediaEntryDto, RecorderDto, SCHEMA_VERSION};
 mod offload;
+#[cfg(all(windows, feature = "windows-qualification"))]
+mod windows_qualification;
 
 use hmp_core::ports::Cancellation;
 use hmp_domain::TransferError;
@@ -92,13 +94,19 @@ async fn choose_destination(
     state: State<'_, Arc<Offload>>,
 ) -> Result<Option<SettingsView>, ErrorDto> {
     let (tx, rx) = tokio::sync::oneshot::channel();
-    window
+    let dialog = window
         .dialog()
         .file()
-        .set_parent(&window)
-        .pick_folder(move |folder| {
-            let _ = tx.send(folder);
-        });
+        .set_title("Choisir une destination HMP V2")
+        .set_parent(&window);
+    #[cfg(all(windows, feature = "windows-qualification"))]
+    let dialog = match windows_qualification::starting_directory() {
+        Some(path) => dialog.set_directory(path),
+        None => dialog,
+    };
+    dialog.pick_folder(move |folder| {
+        let _ = tx.send(folder);
+    });
     let selected = rx
         .await
         .map_err(|_| public_error(TransferError::invalid("Dialogue de destination interrompu")))?;
@@ -191,6 +199,10 @@ fn main() {
             std::fs::create_dir_all(&profile)?;
             let service = tauri::async_runtime::block_on(async { Offload::new(&profile) })?;
             app.manage(Arc::new(service));
+            #[cfg(all(windows, feature = "windows-qualification"))]
+            if let Some(window) = app.get_webview_window("main") {
+                windows_qualification::start(window);
+            }
             Ok(())
         })
         .on_window_event(|window, event| {

@@ -129,3 +129,7 @@ La Preview raccorde la destination native, les transferts Rust FTP et le rapport
 Le premier offload terrain confirmé concerne un Studio HD Plus et un seul fichier de 101,1 Mio sur `/sd2`. La copie et la relecture locale concordent en SHA-256. Le filtre d’affichage des entrées système et les ajustements de lisibilité sont intégrés à la Preview. [Preuves et périmètre du test](MACOS_QUALIFICATION.md)
 
 Les essais synthétiques couvrent APFS, le disque plein, le retrait d’une image APFS et les transferts FTP de plus de 4 Gio. L’image exFAT macOS a refusé l’opération sans écrasement. Les prochains essais ciblent les gros médias sur le Studio HD Plus, plusieurs appareils, SMB et la veille du Mac. Le Studio Mini 2017 reste au backlog. [Rapport du lot 6](LOT6_VALIDATION_REPORT.md)
+
+## Lot 7 · Qualification Windows
+
+Le banc Windows x64 ouvre l’exécutable Tauri et pilote le WebView2 embarqué, le dialogue de dossier et les transferts FTP synthétiques. Les résultats et captures sont attachés à l’exécution de CI. Le DPI système multi-écrans, les supports dont l’essai reste ouvert et la qualification physique sont suivis séparément. [Qualification Windows](WINDOWS_QUALIFICATION.md) · [Rapport du lot 7](LOT7_VALIDATION_REPORT.md)

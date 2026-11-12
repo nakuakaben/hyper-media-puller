@@ -152,3 +152,40 @@ fn batches_reject_empty_and_duplicate_job_ids() {
     assert!(TransferBatch::new(j.batch(), options.clone(), vec![]).is_err());
     assert!(TransferBatch::new(j.batch(), options, vec![j.id(), j.id()]).is_err());
 }
+
+#[test]
+fn local_names_reject_windows_device_aliases_before_extensions() {
+    for name in [
+        "CON",
+        "con.mp4",
+        "CoN .mov",
+        "NUL.tar.gz",
+        "PRN.txt",
+        "AUX.mp4",
+        "COM1.mov",
+        "COM9 .mov",
+        "lpt2.wav",
+        "LPT¹.mov",
+    ] {
+        assert_eq!(
+            LocalName::new(name).unwrap_err().code,
+            ErrorCode::InvalidPath,
+            "{name}"
+        );
+        let remote = RemotePath::new(&format!("/{name}")).unwrap();
+        assert!(
+            LocalName::from_remote(&remote)
+                .unwrap()
+                .as_str()
+                .starts_with("hmp-")
+        );
+    }
+    for name in [
+        "Console.mov",
+        "COM10.mov",
+        "LPT9-track.mov",
+        "clip with space.mov",
+    ] {
+        assert!(LocalName::new(name).is_ok(), "{name}");
+    }
+}

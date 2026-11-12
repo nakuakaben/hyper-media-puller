@@ -1,6 +1,6 @@
 import { Database, FolderOpen, Info, Network, Settings2, SlidersHorizontal } from 'lucide-react'
 import type { Checksum, Duplicate, PreviewInfo } from './contracts'
-import { Badge, Panel } from './ui'
+import { displayLocalPath, Badge, Panel } from './ui'
 
 export type Preferences = { checksum: Checksum; duplicate: Duplicate; concurrency: number; recorderLimit: number; destination: string }
 export const defaultPreferences: Preferences = { checksum: 'md5', duplicate: 'rename', concurrency: 2, recorderLimit: 1, destination: '' }
@@ -35,7 +35,7 @@ export function Destination({ demo, values, onChange, onChoose, available, busy 
   </label>
   return <div className="field-label">
     <span>Dossier destination</span>
-    <div className="destination-path mono break-path">{values.destination || 'Aucun dossier choisi'}</div>
+    <div className="destination-path mono break-path">{displayLocalPath(values.destination) || 'Aucun dossier choisi'}</div>
     {available && <span>{available} disponibles</span>}
     <button disabled={busy} onClick={onChoose}><FolderOpen size={15} />Choisir un dossier</button>
   </div>
