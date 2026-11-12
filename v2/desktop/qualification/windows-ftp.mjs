@@ -48,6 +48,7 @@ export async function startFixture() {
   const sockets = new Set()
   const commands = []
   const errors = []
+  const activeSlowCopies = new Set()
   let dropCount = 0
 
   function server(handler) {
@@ -122,12 +123,20 @@ export async function startFixture() {
                 socket.destroy()
                 break
               }
-              for (let at = 0; at < payload.length && !data.destroyed; at += 65536) {
-                await new Promise(resolve => data.write(payload.subarray(at, at + 65536), resolve))
-                if (name === 'annulation.mov' || name === 'fermeture.mov') await delay(45)
+              const slowCopy = name === 'annulation.mov' || name === 'fermeture.mov'
+              if (slowCopy) {
+                // Confirm that data has started, then keep the read alive without racing the UI action.
+                const firstChunk = 128 * 1024
+                await new Promise(resolve => data.write(payload.subarray(0, firstChunk), resolve))
+                activeSlowCopies.add(name)
+                for (let at = firstChunk; at < payload.length && !data.destroyed; at += 1024) {
+                  await delay(250)
+                  if (data.destroyed) break
+                  await new Promise(resolve => data.write(payload.subarray(at, at + 1024), resolve))
+                }
+                if (data.destroyed) break
               }
-              if (data.destroyed) break
-              await new Promise(resolve => data.end(resolve))
+              await new Promise(resolve => data.end(slowCopy ? undefined : payload, resolve))
             }
             if (!socket.destroyed) socket.write('226 Complete\r\n')
             break
@@ -142,7 +151,7 @@ export async function startFixture() {
   try {
     await listen(control, host, 9993)
     await listen(ftp, host, 21)
-    return { host, close, commands, errors }
+    return { host, close, commands, errors, activeSlowCopies }
   } catch (error) {
     close()
     throw error

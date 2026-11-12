@@ -240,6 +240,7 @@ try {
   }
   const row = name => `[...document.querySelectorAll('.queue-table tbody tr')].find(row => row.innerText.includes(${JSON.stringify(name)}))`
   await addAndStart('annulation.mov')
+  await waitFor('FTP data sent for annulation.mov', () => fixture.activeSlowCopies.has('annulation.mov'))
   await dom(`${row('annulation.mov')}?.innerText.includes('Copie')`)
   await click(button('Annuler'))
   await dom(`${row('annulation.mov')}?.innerText.includes('Annulé')`)
@@ -268,6 +269,7 @@ try {
   assert.ok(fixture.commands.includes('device info') && fixture.commands.some(command => command.startsWith('RETR /sd2/')))
 
   await addAndStart('fermeture.mov')
+  await waitFor('FTP data sent for fermeture.mov', () => fixture.activeSlowCopies.has('fermeture.mov'))
   await dom(`${row('fermeture.mov')}?.innerText.includes('Copie')`)
   note('Native close requested during an active transfer', await native('close'))
   await waitFor('application exits after orderly shutdown', () => app.exitCode !== null)
