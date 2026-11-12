@@ -92,10 +92,12 @@ let completed = false
 try {
   fixture = await startFixture()
   const port = await debuggingPort()
+  assert.ok(process.env.HMP_WEBVIEW2_RUNTIME, 'WebView2 Runtime discovery did not run')
   app = spawn(executable, [], {
     env: {
       ...process.env,
       WEBVIEW2_USER_DATA_FOLDER: join(root, 'webview'),
+      WEBVIEW2_BROWSER_EXECUTABLE_FOLDER: process.env.HMP_WEBVIEW2_RUNTIME,
       WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-address=127.0.0.1 --remote-debugging-port=${port}`,
     },
     windowsHide: false,
@@ -304,6 +306,20 @@ try {
   assert.ok(!(await readdir(destination)).includes('annulation.mov'))
   note('Application exited without publishing the cancelled file')
   completed = true
+} catch (error) {
+  console.error('App exit code:', app?.exitCode, 'PID:', app?.pid)
+  if (app?.pid) {
+    try {
+      const diagnostic = [
+        `Get-Process -Id ${app.pid} -ErrorAction SilentlyContinue | Select-Object ProcessName, SessionId, MainWindowTitle | Format-List`,
+        `Get-CimInstance Win32_Process -Filter "Name='msedgewebview2.exe'" | Where-Object { $_.CommandLine -like '*hmp-win-qa-*' } | ForEach-Object { [pscustomobject]@{ ProcessId=$_.ProcessId; SessionId=$_.SessionId; DebugFlag=$_.CommandLine -like '*remote-debugging-port=*' } } | Format-Table`,
+      ].join('; ')
+      const result = await execute('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', diagnostic], { timeout: 12000, windowsHide: true })
+      console.log(result.stdout.trim())
+      stdout.push(result.stdout.trim())
+    } catch (diagnosticError) { console.error(diagnosticError.message) }
+  }
+  throw error
 } finally {
   report.completed = completed
   if (!completed && browser) {

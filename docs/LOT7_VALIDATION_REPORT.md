@@ -15,4 +15,6 @@ Le job Tauri Windows lance le binaire issu de la compilation. Il joint les captu
 | exFAT et SMB | Une troisième image VHD sert à tester le refus exFAT lorsque le formatage est disponible. Aucun partage SMB de test dans cet environnement. |
 | Matériel physique | Studio HD Plus confirmé sur macOS dans le lot 6. Studio Mini 2017 et transferts physiques Windows à qualifier. |
 
+Un passage Windows du banc de volumes a produit `DestinationFull` après 84 738 048 octets. Après démontage et remontage du second VHD NTFS, le partiel faisait 65 536 octets et le nom final était absent. Le VHD exFAT a été formaté et refusé avant la copie, faute de publication exclusive. [Preuve JSON des volumes](https://github.com/nakuakaben/hyper-media-puller/actions/runs/43215932851/artifacts/13944205983)
+
 Les preuves de transfert indiquent la comparaison entre le flux reçu et sa relecture locale. Les essais synthétiques utilisent des données de fixture et des destinations temporaires. [Procédure Windows](WINDOWS_QUALIFICATION.md)
