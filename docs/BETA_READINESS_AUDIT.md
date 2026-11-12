@@ -47,4 +47,6 @@ Références internes [spécification SAFE](TRANSFER_SAFETY_SPEC.md), [FTP et le
 
 L’essai macOS a utilisé Rust 1.99.1, Node 24.22.0 et les dépendances en cache. Le linker a produit le binaire optimisé malgré un avertissement de stripping `rust-objcopy` lié au chargeur LLVM local. L’empreinte SHA-256 du DMG simple est `a253f457a2e1ec0b56a4e1961c554f661e417235f33214819165c1d3eb7efa70`.
 
+Le lot 9 a retenu la version `0.1.0-beta.1` pour les packages internes. Les décisions actuelles sur les actifs et la distribution sans signature commerciale sont consignées dans les documents de la candidate.
+
 [Checklist](BETA_RELEASE_CHECKLIST.md) · [Plan de distribution](BETA_DISTRIBUTION_PLAN.md)

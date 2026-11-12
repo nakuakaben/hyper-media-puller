@@ -1,6 +1,6 @@
 {
   "productName": "HyperDeck Media Puller V2 Preview",
-  "version": "0.1.0",
+  "version": "../package.json",
   "identifier": "fr.tktprod.hyperdeck-media-puller.v2.preview",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -12,7 +12,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "HyperDeck Media Puller · V2 Preview",
+        "title": "HyperDeck Media Puller · V2 bêta",
         "width": 1280,
         "height": 760,
         "minWidth": 960,
@@ -30,6 +30,18 @@
   "bundle": {
     "active": true,
     "targets": "app",
-    "icon": ["icons/icon.png", "icons/icon.ico", "icons/icon.icns"]
+    "icon": ["icons/icon.png", "icons/icon.ico", "icons/icon.icns"],
+    "resources": {
+      "../../../LICENSE": "licenses/HMP-MIT.txt",
+      "../licenses/": "licenses/"
+    },
+    "macOS": {
+      "minimumSystemVersion": "11.0",
+      "bundleVersion": "1"
+    },
+    "windows": {
+      "nsis": { "installMode": "currentUser" },
+      "webviewInstallMode": { "type": "downloadBootstrapper", "silent": true }
+    }
   }
 }

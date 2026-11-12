@@ -1,3 +1,4 @@
+import { version } from '../package.json'
 import { Activity, AppWindow, ChevronRight, Clapperboard, FileCheck2, Folder, Info, ListChecks, Network, Play, Settings2, X } from 'lucide-react'
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
@@ -307,7 +308,7 @@ function App() {
     </nav>
     <footer className="status-bar">
       <span><Activity size={13} />{demo ? 'Données fictives · aucun transfert physique' : realRunning ? 'Transferts réels en cours' : activeDeck ? activeDeck.recorder.host : 'Aucun appareil sélectionné'}</span>
-      <span><Info size={13} />V2 Preview <span className="mono">{info?.version ?? '0.1.0'}</span></span>
+      <span><Info size={13} />V2 bêta <span className="mono">{info?.version ?? version}</span></span>
     </footer>
     {overlay === 'connect' && <Modal title="Identifier un HyperDeck" onClose={() => setOverlay(undefined)}>
       <Connect onConnect={deck => {
