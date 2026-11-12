@@ -9,3 +9,7 @@ Les captures de Médias, Transferts, Rapports et Paramètres proviennent du WebV
 ## Périmètre matériel
 
 Le Studio HD Plus dispose d’un premier essai physique macOS. Le Studio Mini 2017 reste différé. Les résultats du banc Windows portent sur un appareil synthétique et sur les supports effectivement testés. [Qualification macOS](MACOS_QUALIFICATION.md) · [Résultats et limites du lot 7](LOT7_VALIDATION_REPORT.md)
+
+## Images de test
+
+Le job Rust Windows crée des images VHD jetables de 96 Mio dans le dossier temporaire du runner. Il vérifie un disque plein NTFS, le démontage pendant une écriture et le refus exFAT lorsqu’une image peut être formatée. Le fichier `storage.json` dans **windows-storage-qualification** donne le résultat par scénario. Les commandes de formatage et de démontage sont limitées aux images créées par le test.

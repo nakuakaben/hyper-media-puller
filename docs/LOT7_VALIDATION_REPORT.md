@@ -11,7 +11,8 @@ Le job Tauri Windows lance le binaire issu de la compilation. Il joint les captu
 | NTFS | Le test natif choisit un dossier temporaire avec espaces et accents et transfère un nom de 194 caractères. La suite Rust vérifie le type de volume du runner, le refus ACL, les collisions et le précontrôle d’espace. |
 | Noms réservés | Les tests du domaine vérifient la validation des composants Windows. |
 | DPI et fenêtres | Redimensionnement et fermeture du HWND. Échelles WebView2 100/150/200 % contrôlées par émulation. Les changements de DPI système et multi-écrans restent à qualifier. |
-| exFAT, SMB et retrait | Aucune compatibilité annoncée sans essai. Les tests du lot 6 sur une image APFS et exFAT macOS restent documentés séparément. |
+| Disque plein et retrait | Le job Rust Windows utilise des images VHD NTFS jetables de 96 Mio. Il vérifie l’erreur de saturation et l’absence de final, puis démonte une autre image pendant une écriture et contrôle son contenu après remontage. |
+| exFAT et SMB | Une troisième image VHD sert à tester le refus exFAT lorsque le formatage est disponible. Aucun partage SMB de test dans cet environnement. |
 | Matériel physique | Studio HD Plus confirmé sur macOS dans le lot 6. Studio Mini 2017 et transferts physiques Windows à qualifier. |
 
 Les preuves de transfert indiquent la comparaison entre le flux reçu et sa relecture locale. Les essais synthétiques utilisent des données de fixture et des destinations temporaires. [Procédure Windows](WINDOWS_QUALIFICATION.md)

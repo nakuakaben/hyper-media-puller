@@ -129,7 +129,9 @@ try {
       if (!node || node.disabled || !node.getClientRects().length) return null;
       node.scrollIntoView({ block: 'nearest', inline: 'nearest' });
       const r = node.getBoundingClientRect();
-      return {x: r.x + r.width / 2, y: r.y + r.height / 2};
+      const x = r.x + r.width / 2;
+      const y = r.y + r.height / 2;
+      return node.contains(document.elementFromPoint(x, y)) ? { x, y } : null;
     })()`))
     await send('Input.dispatchMouseEvent', { ...point, type: 'mousePressed', button: 'left', clickCount: 1 })
     await send('Input.dispatchMouseEvent', { ...point, type: 'mouseReleased', button: 'left', clickCount: 1 })
@@ -160,6 +162,22 @@ try {
   report.webview2 = { browser: version.Browser, agent }
   assert.match(agent, /Edg\//)
   note('Windows x64 executable running in its embedded WebView2', version.Browser)
+  report.appearance = await evaluate(`(() => {
+    const root = getComputedStyle(document.documentElement)
+    return {
+      background: root.getPropertyValue('--ui-bg').trim(),
+      panel: root.getPropertyValue('--ui-panel').trim(),
+      border: root.getPropertyValue('--ui-border').trim(),
+      selection: root.getPropertyValue('--ui-selection').trim(),
+      navigation: document.querySelector('.bottom-nav').getBoundingClientRect().height,
+      status: document.querySelector('.status-bar').getBoundingClientRect().height,
+      font: root.fontFamily,
+    }
+  })()`)
+  const { font, ...tokens } = report.appearance
+  assert.match(font, /Inter Variable/)
+  assert.deepEqual(tokens, { background: '#09090b', panel: '#18181b', border: '#27272a', selection: '#1177d7', navigation: 44, status: 28 })
+  note('RWA 0.8.1 palette, typography and bars match the native renderer')
   const originalWidth = await evaluate('innerWidth')
   note('Native window resize', await native('resize'))
   await dom(`innerWidth !== ${originalWidth}`)

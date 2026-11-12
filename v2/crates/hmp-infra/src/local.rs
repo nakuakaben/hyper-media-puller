@@ -104,7 +104,14 @@ fn no_replace(source: &Dir, partial: &str, target: &Dir, name: &str) -> io::Resu
     }
     #[cfg(not(any(target_os = "macos", target_os = "linux")))]
     {
-        source.hard_link(partial, target, name)?;
+        source.hard_link(partial, target, name).map_err(|error| {
+            // ERROR_INVALID_FUNCTION and ERROR_NOT_SUPPORTED are returned by volumes without hard links.
+            #[cfg(windows)]
+            if matches!(error.raw_os_error(), Some(1 | 50)) {
+                return io::ErrorKind::Unsupported.into();
+            }
+            error
+        })?;
         // The final entry has been published. Cleanup cannot undo that publication.
         let _ = source.remove_file(partial);
         Ok(())
