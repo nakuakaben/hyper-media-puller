@@ -97,6 +97,7 @@ async fn choose_destination(
     window
         .dialog()
         .file()
+        .set_title("Choisir une destination HMP V2")
         .set_parent(&window)
         .pick_folder(move |folder| {
             let _ = tx.send(folder);
