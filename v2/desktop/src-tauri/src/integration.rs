@@ -42,7 +42,7 @@ async fn ftp_session(socket: TcpStream) -> io::Result<()> {
                 let (mut data, _) = passive.take().expect("EPSV first").accept().await?;
                 socket.get_mut().write_all(b"150 Opening data\r\n").await?;
                 if line.starts_with("LIST") {
-                    data.write_all(b"-rw-r--r-- 1 owner group 4 Jan 01 2026 clip.mov\r\n")
+                    data.write_all(b"-rw-r--r-- 1 owner group 4 Jan 01 2026 clip.mov\r\n-rw-r--r-- 1 owner group 4 Jan 01 2026 ._clip.mov\r\n")
                         .await?;
                 } else {
                     assert_eq!(line.trim(), "RETR /clip.mov");
@@ -122,6 +122,13 @@ fn ipc_listing_queue_actions_snapshot_and_real_report() {
     let id = recorder.id().to_string();
     let listing = call("list_media", json!({"recorderId": id, "path": "/"}));
     assert_eq!(listing[0]["size"], "4");
+    assert!(
+        listing
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|entry| entry["remote_path"] == "/._clip.mov")
+    );
     let options = json!({"batch": {"duplicate": "rename", "checksum": "both"}, "global_limit": 2, "recorder_limit": 1});
     let request = |path: &str| {
         json!({"request": {
@@ -131,6 +138,13 @@ fn ipc_listing_queue_actions_snapshot_and_real_report() {
     assert!(invoke(&window, "enqueue_transfer", request("/clip.mov")).is_err());
     tauri::async_runtime::block_on(service.select(first.path().to_owned())).unwrap();
     assert!(invoke(&window, "enqueue_transfer", request("/forged.mov")).is_err());
+    for path in ["/._clip.mov", "/System Volume Information/clip.mov"] {
+        let error = invoke(&window, "enqueue_transfer", request(path)).unwrap_err();
+        assert_eq!(
+            error["message"],
+            "Les fichiers système sont réservés au diagnostic"
+        );
+    }
     let batch = call("enqueue_transfer", request("/clip.mov"))
         .as_str()
         .unwrap()

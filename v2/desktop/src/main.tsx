@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client'
 import '@fontsource-variable/inter'
 import { bridge, errorMessage, offload, type Deck, type Job, type PreviewInfo, type TransferAction, type TransferOptions as OptionsDto } from './contracts'
 import { advanceDemo, demoDecks, demoJob, initialJobs, listDemo, formatBytes } from './demo'
+import { isSystemPath, selectableMedia, visibleParent } from './media-visibility'
 import { MediaBrowser, Recorders, TransferOptions, type Listing } from './media'
 import { defaultPreferences, Options, Settings, type Preferences } from './settings'
 import { CompactQueue, Reports, Transfers } from './transfers'
@@ -111,6 +112,7 @@ function App() {
   const [path, setPath] = useState('/')
   const [refresh, setRefresh] = useState(0)
   const [result, setResult] = useState<{ key: string; listing: Listing }>()
+  const [showSystem, setShowSystem] = useState(false)
   const [selected, setSelected] = useState(new Set<string>())
   const [jobs, setJobs] = useState<Job[]>(initialJobs)
   const [playing, setPlaying] = useState(false)
@@ -130,10 +132,14 @@ function App() {
   const id = demo ? demoId : liveId
   const activeDeck = decks.find(deck => deck.recorder.id === id)
   const listingKey = JSON.stringify([demo, id, path, refresh])
-  const listing: Listing = !activeDeck ? idle : result?.key === listingKey ? result.listing : { status: 'loading', items: [] }
+  const rawListing: Listing = !activeDeck ? idle : result?.key === listingKey ? result.listing : { status: 'loading', items: [] }
+  const hiddenCount = showSystem ? 0 : rawListing.items.filter(item => isSystemPath(item.remote_path)).length
+  const listing: Listing = hiddenCount
+    ? { ...rawListing, items: rawListing.items.filter(item => !isSystemPath(item.remote_path)) }
+    : rawListing
   const visibleJobs = demo ? jobs : real.queue?.jobs ?? []
   const names = demo ? Object.fromEntries(decks.map(({ recorder }) => [recorder.id, recorder.name])) : real.queue?.recorders ?? {}
-  const chosen = listing.items.filter(item => !item.directory && selected.has(item.remote_path))
+  const chosen = selectableMedia(listing.items).filter(item => selected.has(item.remote_path))
   const bytes = chosen.some(entry => entry.size === null) ? null : String(chosen.reduce((sum, entry) => sum + BigInt(entry.size ?? '0'), 0n))
   const values = demo ? demoPreferences : { ...preferences, destination: real.settings?.destination ?? '' }
   const available = real.settings?.available ? formatBytes(real.settings.available) : undefined
@@ -207,12 +213,19 @@ function App() {
   function toggleDemo() {
     if (!demo && (realRunning || real.busy)) return
     setDemo(!demo)
+    setShowSystem(false)
     setPlaying(false)
     if (!demo) setDemoId('mini')
     setSelectedJob(undefined)
     setPreferredBatch(undefined)
     setPage('media')
     navigate(demo ? '/' : '/1')
+  }
+
+  function changeSystemVisibility(show: boolean) {
+    setShowSystem(show)
+    const parent = visibleParent(path)
+    if (!show && parent !== path) navigate(parent)
   }
 
   async function addJobs() {
@@ -270,7 +283,7 @@ function App() {
           <Recorders decks={decks} active={id} demo={demo} native={bridge.native} onSelect={chooseDeck} onConnect={() => setOverlay('connect')} />
           <Splitter axis="x" label="Largeur des appareils" min={210} max={leftMax} value={activeLayout.left} onChange={left => setLayout({ ...layout, left })} />
           <MediaBrowser deck={activeDeck} path={path} listing={listing} selected={selected} setSelected={setSelected} navigate={navigate}
-            refresh={() => navigate(path)} compact={compact} onOptions={() => setOverlay('options')} />
+            refresh={() => navigate(path)} showSystem={showSystem} hiddenCount={hiddenCount} onShowSystem={changeSystemVisibility} compact={compact} onOptions={() => setOverlay('options')} />
           {!compact && <><Splitter axis="x" label="Largeur des options" min={254} max={360} value={layout.right} reverse
             onChange={right => setLayout({ ...layout, right })} />{transferOptions}</>}
         </div>

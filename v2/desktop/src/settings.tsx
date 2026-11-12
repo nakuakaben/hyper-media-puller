@@ -5,13 +5,20 @@ import { Badge, Panel } from './ui'
 export type Preferences = { checksum: Checksum; duplicate: Duplicate; concurrency: number; recorderLimit: number; destination: string }
 export const defaultPreferences: Preferences = { checksum: 'md5', duplicate: 'rename', concurrency: 2, recorderLimit: 1, destination: '' }
 
+export const duplicateLabels: Record<Duplicate, string> = {
+  rename: 'Renommer la copie', skip: 'Ignorer', overwrite: 'Écraser la copie locale',
+}
+export const checksumLabels: Record<Checksum, string> = {
+  none: 'Aucun', md5: 'MD5', sha256: 'SHA-256', both: 'MD5 + SHA-256',
+}
+
 export function Options({ values, onChange }: { values: Preferences; onChange: (p: Preferences) => void }) {
   return <>
     <label className="field-label">Doublons<select value={values.duplicate} onChange={event => onChange({ ...values, duplicate: event.target.value as Duplicate })}>
-      <option value="rename">Renommer la copie</option><option value="skip">Ignorer</option><option value="overwrite">Écraser la copie locale</option>
+      {Object.entries(duplicateLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
     </select></label>
     <label className="field-label">Checksum<select value={values.checksum} onChange={event => onChange({ ...values, checksum: event.target.value as Checksum })}>
-      <option value="none">Aucun</option><option value="md5">MD5</option><option value="sha256">SHA-256</option><option value="both">MD5 + SHA-256</option>
+      {Object.entries(checksumLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
     </select></label>
   </>
 }

@@ -25,16 +25,19 @@ function JobTable({ jobs, names, selected, onSelect, compact = false }: {
       <tbody>{jobs.map(job => {
         const status = statuses[job.status]
         const file = job.remote_path.split('/').at(-1)
+        const recorder = names[job.recorder_id] ?? job.recorder_id
+        const destination = 'destination' in job ? (job as LiveJob).destination ?? job.requested_destination : job.requested_destination
+        const outputName = destination.split(/[/\\]/).at(-1)
         return <tr key={job.id} className={job.id === selected ? 'selected' : undefined}>
           <th scope="row"><button className="cell-button" onClick={() => onSelect(job.id)} title={job.remote_path}>
             <FileClock size={14} aria-hidden="true" /><span className="truncate">{file}</span>
           </button></th>
-          <td><span className="truncate">{names[job.recorder_id] ?? job.recorder_id}</span></td>
+          <td><span className="truncate" title={recorder}>{recorder}</span></td>
           <td><Badge label={status.label} tone={status.tone} /></td>
           <td><ProgressCell job={job} phase="copy" /></td>
           <td><ProgressCell job={job} phase="verify" /></td>
-          <td className="mono"><span className="truncate" title={'destination' in job ? (job as LiveJob).destination ?? job.requested_destination : job.requested_destination}>
-            {compact ? formatBytes(job.progress.total) : 'destination' in job ? (job as LiveJob).destination ?? job.requested_destination : job.requested_destination}
+          <td className="mono"><span className="truncate" title={compact ? undefined : destination}>
+            {compact ? formatBytes(job.progress.total) : outputName}
           </span></td>
         </tr>
       })}</tbody>

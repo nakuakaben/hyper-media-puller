@@ -5,6 +5,7 @@
     "jsx": "react-jsx",
     "module": "ESNext",
     "moduleResolution": "Bundler",
+    "resolveJsonModule": true,
     "types": ["vite/client"],
     "strict": true,
     "noEmit": true,

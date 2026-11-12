@@ -251,6 +251,23 @@ pub fn public_error(error: TransferError) -> ErrorDto {
     ErrorDto::from(&error)
 }
 
+#[derive(Deserialize)]
+struct SystemFiles {
+    names: Vec<String>,
+    prefixes: Vec<String>,
+}
+
+fn is_system_path(path: &RemotePath) -> bool {
+    static RULES: std::sync::LazyLock<SystemFiles> = std::sync::LazyLock::new(|| {
+        serde_json::from_str(include_str!("../../src/system-files.json"))
+            .expect("embedded system file rules")
+    });
+    path.as_str().split('/').any(|component| {
+        let name = component.to_ascii_lowercase();
+        RULES.names.contains(&name) || RULES.prefixes.iter().any(|prefix| name.starts_with(prefix))
+    })
+}
+
 fn local_name(path: &RemotePath) -> Result<LocalName> {
     let basename = path.file_name()?;
     if !basename.to_ascii_lowercase().starts_with("hmp-")
@@ -419,6 +436,11 @@ impl Offload {
                 .iter()
                 .map(|raw| {
                     let path = RemotePath::new(raw)?;
+                    if is_system_path(&path) {
+                        return Err(TransferError::invalid(
+                            "Les fichiers système sont réservés au diagnostic",
+                        ));
+                    }
                     if !unique.insert(path.clone()) {
                         return Err(TransferError::invalid("Le fichier figure déjà dans ce lot"));
                     }
