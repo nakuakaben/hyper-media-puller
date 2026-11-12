@@ -1,3 +1,4 @@
+import { version } from '../package.json'
 import { Database, FolderOpen, Info, Network, Settings2, SlidersHorizontal } from 'lucide-react'
 import type { Checksum, Duplicate, PreviewInfo } from './contracts'
 import { displayLocalPath, Badge, Panel } from './ui'
@@ -72,7 +73,7 @@ export function Settings({ demo, native, info, values, onChange, onConnect, onRe
       </>}
     </div></Panel>
     <Panel title="Application" icon={Info}><div className="panel-body stack">
-      <dl className="key-values"><dt>Version</dt><dd className="mono">{info?.version ?? '0.1.0'} Preview</dd>
+      <dl className="key-values"><dt>Version</dt><dd className="mono">{info?.version ?? version} bêta</dd>
         <dt>Contrat</dt><dd className="mono">{info?.schema_version ?? '—'}</dd>
         <dt>Profil V2</dt><dd className="mono break-path">{info?.profile ?? 'Aperçu navigateur'}</dd></dl>
       <div className="row"><button onClick={onReset}><Settings2 size={14} />Réinitialiser la disposition</button>

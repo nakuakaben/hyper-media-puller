@@ -1,22 +1,10 @@
 import { ArrowUp, ChevronRight, CircleAlert, Clapperboard, FileVideo, Folder, FolderOpen, HardDrive, ListPlus, Plus, RefreshCw, Search, Server, SlidersHorizontal } from 'lucide-react'
 import { useState } from 'react'
-import mini from '../../../assets/devices/hyperdeck-studio-hd-mini.png'
-import plus from '../../../assets/devices/hyperdeck-studio-hd-plus.png'
-import pro from '../../../assets/devices/hyperdeck-studio-4k-pro.png'
-import extreme from '../../../assets/devices/hyperdeck-extreme-8k.png'
 import type { Deck, Media } from './contracts'
 import { isSystemPath, selectableMedia } from './media-visibility'
 import { formatBytes } from './demo'
 import { Destination, Options, type Preferences } from './settings'
 import { Badge, Empty, Loading, Panel } from './ui'
-
-const images: Record<string, string> = {
-  'hyperdeck studio hd mini': mini,
-  'hyperdeck studio hd plus': plus,
-  'hyperdeck studio 4k pro': pro,
-  'hyperdeck extreme 8k hdr': extreme,
-  'hyperdeck extreme 8k': extreme,
-}
 
 export function Recorders({ decks, active, demo, native, onSelect, onConnect }: {
   decks: Deck[]; active: string | undefined; demo: boolean; native: boolean
@@ -31,10 +19,9 @@ export function Recorders({ decks, active, demo, native, onSelect, onConnect }: 
       value={filter} onChange={event => setFilter(event.target.value)} placeholder="Rechercher" /></label></div>
     <div className="recorder-list">
       {visible.map(({ recorder, model }) => {
-        const image = images[model.toLowerCase()]
         const offline = demo && recorder.id === 'legacy'
         return <button key={recorder.id} className="recorder" aria-pressed={active === recorder.id} onClick={() => onSelect(recorder.id)}>
-          <span className="device-icon">{image ? <img src={image} alt="" /> : <Server size={23} aria-hidden="true" />}</span>
+          <span className="device-icon"><Server size={23} aria-hidden="true" /></span>
           <span className="device-label"><strong className="truncate" title={recorder.name}>{recorder.name}</strong>
             {model !== recorder.name && <span className="truncate" title={model}>{model}</span>}
             <span className="mono truncate">{offline ? "Hors ligne" : recorder.host}</span></span>

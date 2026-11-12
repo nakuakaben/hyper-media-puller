@@ -196,7 +196,7 @@ dependencies = [
 
 [[package]]
 name = "hmp-contract"
-version = "0.1.0"
+version = "0.1.0-beta.1"
 dependencies = [
  "hmp-core",
  "hmp-domain",
@@ -206,7 +206,7 @@ dependencies = [
 
 [[package]]
 name = "hmp-core"
-version = "0.1.0"
+version = "0.1.0-beta.1"
 dependencies = [
  "async-trait",
  "hmp-domain",
@@ -217,14 +217,14 @@ dependencies = [
 
 [[package]]
 name = "hmp-domain"
-version = "0.1.0"
+version = "0.1.0-beta.1"
 dependencies = [
  "uuid",
 ]
 
 [[package]]
 name = "hmp-infra"
-version = "0.1.0"
+version = "0.1.0-beta.1"
 dependencies = [
  "async-trait",
  "cap-std",
