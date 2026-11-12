@@ -16,17 +16,24 @@ try {
     $env:LOCALAPPDATA = $local
     $env:APPDATA = [Environment]::GetFolderPath('ApplicationData')
     $path = Join-Path $local 'HMP bêta avec espaces'
-    $exe = Join-Path $path 'hmp-v2-preview.exe'
     $report.webView2 = 'present'
     $report.installerSignature = (Get-AuthenticodeSignature -FilePath $Installer).Status.ToString()
 
     $setup = Start-Process $Installer -ArgumentList "/S /D=$path" -Wait -PassThru
-    if ($setup.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $exe)) {
-        throw "Per-user install failed (exit $($setup.ExitCode))."
+    if ($setup.ExitCode -ne 0) { throw "Per-user install failed (exit $($setup.ExitCode))." }
+    $entries = @(Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' |
+        Where-Object DisplayName -eq 'HyperDeck Media Puller V2 Preview')
+    if ($entries.Count -ne 1) { throw 'Expected one HMP uninstall entry in HKCU.' }
+    $entry = $entries[0]
+    if ($entry.DisplayVersion -ne $Version) { throw "Unexpected installed version: $($entry.DisplayVersion)" }
+    $installedPath = $entry.InstallLocation.Trim('"')
+    if ($installedPath -ne $path) { throw "Unexpected installed directory: $installedPath" }
+    $exe = Join-Path $installedPath $entry.MainBinaryName
+    $uninstaller = $entry.UninstallString.Trim('"')
+    if (-not (Test-Path -LiteralPath $exe -PathType Leaf) -or -not (Test-Path -LiteralPath $uninstaller -PathType Leaf)) {
+        throw "Missing binary or uninstaller in the registered directory: $installedPath"
     }
-    $uninstallEntry = Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' |
-        Where-Object { $_.DisplayVersion -eq $Version -and $_.UninstallString -like "*$path*" }
-    if (-not $uninstallEntry) { throw 'Expected a versioned per-user uninstall entry.' }
+    $report.installedBinary = $entry.MainBinaryName
     $report.installed = $true
     $report.applicationSignature = (Get-AuthenticodeSignature -FilePath $exe).Status.ToString()
 
@@ -42,7 +49,6 @@ try {
         throw 'The installed application did not close normally.'
     }
 
-    $uninstaller = Join-Path $path 'uninstall.exe'
     $remove = Start-Process $uninstaller -ArgumentList '/S' -Wait -PassThru
     if ($remove.ExitCode -ne 0 -or (Test-Path -LiteralPath $exe)) { throw 'Uninstall did not remove the application.' }
     $report.uninstalled = $true

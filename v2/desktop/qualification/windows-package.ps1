@@ -46,14 +46,22 @@ try {
         WorkingDirectory = $root
         PassThru = $true
     }
-    $test = Start-Process @parameters
-    if (-not $test.WaitForExit(180000)) {
-        $test.Kill()
-        throw 'The standard-user installer test exceeded three minutes.'
-    }
     $report = Join-Path $root 'windows-package.json'
-    if (Test-Path $report) { Get-Content $report }
-    if ($test.ExitCode -ne 0 -or -not (Test-Path $report)) { throw 'Standard-user installer test failed.' }
+    $testFailure = $null
+    try {
+        $test = Start-Process @parameters
+        if (-not $test.WaitForExit(180000)) {
+            $test.Kill()
+            throw 'The standard-user installer test exceeded three minutes.'
+        }
+        if ($test.ExitCode -ne 0 -or -not (Test-Path $report)) { throw 'Standard-user installer test failed.' }
+    } catch {
+        $testFailure = $_
+        if (-not (Test-Path $report)) {
+            @{ version = $version; error = $_.Exception.Message } | ConvertTo-Json | Set-Content -Encoding utf8 $report
+        }
+    }
+    Get-Content $report
 
     $hash = (Get-FileHash -Algorithm SHA256 $installer).Hash.ToLowerInvariant()
     Set-Content -Encoding ascii (Join-Path $root 'SHA256SUMS.txt') "$hash  $name"
@@ -66,6 +74,7 @@ try {
     Expand-Archive $ageZip -DestinationPath $root
     & "$root/age/age.exe" --encrypt --recipient $Recipient --output "$output/windows-package.zip.age" $archive
     if ($LASTEXITCODE -ne 0) { throw 'Encrypting the installer artifact failed.' }
+    if ($testFailure) { throw $testFailure }
 } finally {
     if (Get-LocalUser -Name $account -ErrorAction SilentlyContinue) { Remove-LocalUser -Name $account }
     Remove-Item -LiteralPath $root -Force -Recurse

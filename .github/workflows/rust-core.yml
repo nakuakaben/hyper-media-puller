@@ -121,12 +121,12 @@ jobs:
           if (-not $recipient.Success) { throw 'Missing a valid encrypted-artifact recipient.' }
           ./qualification/windows-package.ps1 -Recipient $recipient.Groups[1].Value
       - name: Upload encrypted Windows beta
-        if: runner.os == 'Windows' && contains(github.event.pull_request.body, 'HMP-BETA-RECIPIENT=')
+        if: always() && runner.os == 'Windows' && contains(github.event.pull_request.body, 'HMP-BETA-RECIPIENT=')
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: windows-beta-encrypted
           path: ${{ runner.temp }}/hmp-beta-windows/windows-package.zip.age
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 7
       - name: Upload Windows qualification evidence
         if: always() && runner.os == 'Windows'
