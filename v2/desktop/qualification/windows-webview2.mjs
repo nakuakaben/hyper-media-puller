@@ -178,6 +178,10 @@ try {
   await click(button('Choisir un dossier'))
   note('Windows native folder picker', await native('folder'))
   await dom(bodyContains('Régie extérieure'))
+  const displayedPath = await evaluate("document.querySelector('.destination-path').textContent")
+  assert.match(displayedPath, /^[a-z]:\\/i)
+  assert.ok(displayedPath.includes('Régie extérieure'))
+  note('Windows destination shown as a readable drive path')
   const shaOption = "[aria-label='Destination et options'] select"
   await evaluate(`(() => {
     const select = [...document.querySelectorAll(${JSON.stringify(shaOption)})].at(-1);

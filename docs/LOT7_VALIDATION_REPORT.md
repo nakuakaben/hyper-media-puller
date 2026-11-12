@@ -4,6 +4,8 @@ Base `5d4958d`. Les tests Electron V1, SAFE-01 à SAFE-12, FTP legacy, IPC Tauri
 
 Le job Tauri Windows lance le binaire issu de la compilation. Il joint les captures de WebView2 et un relevé JSON qui indique les contrôles effectivement terminés, les dimensions des images, les tailles transférées et les SHA-256. L’artefact est associé au commit vérifié par GitHub Actions. [Historique des exécutions du lot 7](https://github.com/nakuakaben/hyper-media-puller/actions/workflows/rust-core.yml?query=branch%3Afeat%2Frust-v2-windows-qualification)
 
+Le premier parcours WebView2 complet jusqu’au réessai a produit deux copies vérifiées de 1 Mio et 512 Kio et un rapport SHA-256 concordant. Il a confirmé l’absence de final après annulation et après rupture FTP, puis la vérification du fichier au nouvel essai. Les captures ont révélé le préfixe Windows interne des chemins canoniques dans les panneaux. Les vues affichent désormais un chemin Windows lisible et le rapport JSON conserve le chemin du moteur. [Captures et relevé de ce passage](https://github.com/nakuakaben/hyper-media-puller/actions/runs/43221578434/artifacts/13947000121)
+
 ## Portée des essais
 
 | Situation | Périmètre |

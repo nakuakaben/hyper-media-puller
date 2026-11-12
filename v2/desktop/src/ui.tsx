@@ -3,6 +3,12 @@ import { useRef, type CSSProperties, type ReactNode } from 'react'
 import type { Job, Status } from './contracts'
 import { percent } from './demo'
 
+export function displayLocalPath(path: string): string {
+  if (/^\\\\\?\\UNC\\/i.test(path)) return '\\\\' + path.slice(8)
+  if (/^\\\\\?\\[a-z]:\\/i.test(path)) return path.slice(4)
+  return path
+}
+
 export function Panel({ title, icon: Icon, meta, actions, children, className = '' }: {
   title: string; icon?: LucideIcon; meta?: string; actions?: ReactNode; children: ReactNode; className?: string
 }) {

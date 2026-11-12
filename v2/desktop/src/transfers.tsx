@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { scopeLabel, terminal, type Batch, type BatchDetails, type Job, type LiveJob, type TransferAction } from './contracts'
 import type { Rate } from './offload'
 import { formatBytes } from './demo'
-import { Badge, Empty, Panel, ProgressCell, statuses } from './ui'
+import { displayLocalPath, Badge, Empty, Panel, ProgressCell, statuses } from './ui'
 
 type QueueProps = {
   jobs: Job[]
@@ -27,7 +27,7 @@ function JobTable({ jobs, names, selected, onSelect, compact = false }: {
         const file = job.remote_path.split('/').at(-1)
         const recorder = names[job.recorder_id] ?? job.recorder_id
         const destination = 'destination' in job ? (job as LiveJob).destination ?? job.requested_destination : job.requested_destination
-        const outputName = destination.split(/[/\\]/).at(-1)
+        const outputName = displayLocalPath(destination).split(/[/\\]/).at(-1)
         return <tr key={job.id} className={job.id === selected ? 'selected' : undefined}>
           <th scope="row"><button className="cell-button" onClick={() => onSelect(job.id)} title={job.remote_path}>
             <FileClock size={14} aria-hidden="true" /><span className="truncate">{file}</span>
@@ -36,7 +36,7 @@ function JobTable({ jobs, names, selected, onSelect, compact = false }: {
           <td><Badge label={status.label} tone={status.tone} /></td>
           <td><ProgressCell job={job} phase="copy" /></td>
           <td><ProgressCell job={job} phase="verify" /></td>
-          <td className="mono"><span className="truncate" title={compact ? undefined : destination}>
+          <td className="mono"><span className="truncate" title={compact ? undefined : displayLocalPath(destination)}>
             {compact ? formatBytes(job.progress.total) : outputName}
           </span></td>
         </tr>
@@ -95,8 +95,8 @@ export function Transfers({ jobs, names, demo, selected, preferredBatch, onSelec
         <dl className="key-values">
           <dt>Source</dt><dd className="mono break-path">{job.remote_path}</dd>
           <dt>HyperDeck</dt><dd>{names[job.recorder_id]}</dd>
-          <dt>{live?.destination ? 'Destination' : 'Nom prévu'}</dt><dd className="mono break-path">{live?.destination ?? job.requested_destination}</dd>
-          {destination && !live?.destination && <><dt>Dossier du lot</dt><dd className="mono break-path">{destination.destination}</dd></>}
+          <dt>{live?.destination ? 'Destination' : 'Nom prévu'}</dt><dd className="mono break-path">{displayLocalPath(live?.destination ?? job.requested_destination)}</dd>
+          {destination && !live?.destination && <><dt>Dossier du lot</dt><dd className="mono break-path">{displayLocalPath(destination.destination)}</dd></>}
           <dt>Taille attendue</dt><dd className="mono">{formatBytes(job.progress.total)}</dd>
           {live && <><dt>Octets écrits</dt><dd className="mono">{formatBytes(live.progress.written)}</dd></>}
           {rate && <><dt>Débit</dt><dd className="mono">{formatBytes(String(rate.bytesPerSecond))}/s</dd>

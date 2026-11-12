@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { errorMessage, offload, schemaVersion, scopeLabel, type Queue, type Report } from './contracts'
 import { checksumLabels, duplicateLabels } from './settings'
 import { formatBytes } from './demo'
-import { Badge, Empty, Loading, Panel, statuses } from './ui'
+import { displayLocalPath, Badge, Empty, Loading, Panel, statuses } from './ui'
 
 const seconds = new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
 const formatDuration = (milliseconds: string) => seconds.format(Number(milliseconds) / 1000) + ' s'
@@ -50,7 +50,7 @@ export function RealReports({ queue }: { queue?: Queue }) {
               <div className="row"><h3 className="break-path">{transfer.remote_path}</h3><Badge {...status} /></div>
               <dl className="key-values">
                 <dt>Source</dt><dd>{source.name} · {source.host}</dd>
-                <dt>Destination</dt><dd className="mono break-path">{transfer.destination ?? transfer.requested_destination}</dd>
+                <dt>Destination</dt><dd className="mono break-path">{displayLocalPath(transfer.destination ?? transfer.requested_destination)}</dd>
                 <dt>Attendu</dt><dd className="mono">{formatBytes(transfer.progress.total)}</dd>
                 <dt>Reçu / écrit</dt><dd className="mono">{formatBytes(transfer.progress.received)} / {formatBytes(transfer.progress.written)}</dd>
                 <dt>Durée</dt><dd>{elapsed_millis === null ? '—' : formatDuration(elapsed_millis)}</dd>
@@ -71,7 +71,7 @@ export function RealReports({ queue }: { queue?: Queue }) {
       {report ? <div className="panel-body stack">
         <dl className="key-values"><dt>Création</dt><dd>{new Date(Number(report.batch.created_at_millis)).toLocaleString('fr-FR')}</dd>
           <dt>Durée</dt><dd>{formatDuration(report.elapsed_millis)}</dd>
-          <dt>Dossier</dt><dd className="mono break-path">{report.batch.destination}</dd>
+          <dt>Dossier</dt><dd className="mono break-path">{displayLocalPath(report.batch.destination)}</dd>
           <dt>Doublons</dt><dd>{duplicateLabels[report.batch.options.batch.duplicate]}</dd>
           <dt>Checksums</dt><dd>{checksumLabels[report.batch.options.batch.checksum]}</dd>
           <dt>Concurrence</dt><dd>{report.batch.options.global_limit} globale · {report.batch.options.recorder_limit} par HyperDeck</dd>
