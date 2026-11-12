@@ -5,6 +5,7 @@ import plus from '../../../assets/devices/hyperdeck-studio-hd-plus.png'
 import pro from '../../../assets/devices/hyperdeck-studio-4k-pro.png'
 import extreme from '../../../assets/devices/hyperdeck-extreme-8k.png'
 import type { Deck, Media } from './contracts'
+import { isSystemPath, selectableMedia } from './media-visibility'
 import { formatBytes } from './demo'
 import { Destination, Options, type Preferences } from './settings'
 import { Badge, Empty, Loading, Panel } from './ui'
@@ -34,8 +35,8 @@ export function Recorders({ decks, active, demo, native, onSelect, onConnect }: 
         const offline = demo && recorder.id === 'legacy'
         return <button key={recorder.id} className="recorder" aria-pressed={active === recorder.id} onClick={() => onSelect(recorder.id)}>
           <span className="device-icon">{image ? <img src={image} alt="" /> : <Server size={23} aria-hidden="true" />}</span>
-          <span className="device-label"><strong className="truncate">{recorder.name}</strong>
-            <span className="truncate" title={model}>{model}</span>
+          <span className="device-label"><strong className="truncate" title={recorder.name}>{recorder.name}</strong>
+            {model !== recorder.name && <span className="truncate" title={model}>{model}</span>}
             <span className="mono truncate">{offline ? "Hors ligne" : recorder.host}</span></span>
           <span className={'device-dot ' + (offline ? 'offline' : 'available')} aria-label={offline ? 'Hors ligne' : demo ? 'Appareil de démonstration' : 'Identifié'} />
         </button>
@@ -47,11 +48,12 @@ export function Recorders({ decks, active, demo, native, onSelect, onConnect }: 
 
 export type Listing = { status: 'idle' | 'loading' | 'ready' | 'error' | 'offline'; items: Media[]; message?: string }
 
-export function MediaBrowser({ deck, path, listing, selected, setSelected, navigate, refresh, onOptions, compact }: {
+export function MediaBrowser({ deck, path, listing, selected, setSelected, navigate, refresh, onOptions, compact, showSystem, hiddenCount, onShowSystem }: {
   deck?: Deck; path: string; listing: Listing; selected: Set<string>; setSelected: (value: Set<string>) => void
   navigate: (path: string) => void; refresh: () => void; onOptions: () => void; compact: boolean
+  showSystem: boolean; hiddenCount: number; onShowSystem: (show: boolean) => void
 }) {
-  const files = listing.items.filter(entry => !entry.directory)
+  const files = selectableMedia(listing.items)
   const segments = path.split('/').filter(Boolean)
   const parent = path.slice(0, path.lastIndexOf('/')) || '/'
   return <Panel title="Navigateur FTP" icon={FolderOpen} meta={deck?.recorder.name} actions={<>
@@ -64,6 +66,10 @@ export function MediaBrowser({ deck, path, listing, selected, setSelected, navig
       {segments.map((segment, index) => <span className="crumb" key={index}><ChevronRight size={12} />
         <button className="ghost small mono truncate" title={segment} aria-current={index === segments.length - 1 ? 'location' : undefined}
           onClick={() => navigate('/' + segments.slice(0, index + 1).join('/'))}>{segment}</button></span>)}
+      <label className="system-toggle">
+        <input type="checkbox" checked={showSystem} disabled={!deck} onChange={event => onShowSystem(event.target.checked)} />
+        Afficher les fichiers système
+      </label>
     </div>
     {listing.status === 'idle' && <Empty icon={HardDrive} title="Sélectionnez un HyperDeck">Les dossiers et médias FTP s’afficheront ici.</Empty>}
     {listing.status === 'loading' && <Loading title="Lecture du dossier FTP…" />}
@@ -71,18 +77,20 @@ export function MediaBrowser({ deck, path, listing, selected, setSelected, navig
       title={listing.status === 'offline' ? 'HyperDeck hors ligne' : 'Dossier FTP inaccessible'}>
       <p>{listing.message}</p><button onClick={refresh}><RefreshCw size={14} />Réessayer</button>
     </Empty>}
-    {listing.status === 'ready' && !listing.items.length && <Empty icon={FolderOpen} title="Dossier vide" />}
+    {listing.status === 'ready' && !listing.items.length && <Empty icon={FolderOpen} title={hiddenCount ? "Ce dossier contient uniquement des fichiers système masqués" : "Dossier vide"} />}
     {listing.status === 'ready' && listing.items.length > 0 && <div className="table-scroll">
       <table className="media-table"><colgroup><col className="check-col" /><col /><col className="type-col" /><col className="size-col" /></colgroup>
         <thead><tr><th scope="col"><input type="checkbox" aria-label="Sélectionner tous les fichiers"
-          disabled={!files.length} checked={files.length > 0 && selected.size === files.length}
+          disabled={!files.length} checked={files.length > 0 && files.every(file => selected.has(file.remote_path))}
+          ref={input => { if (input) input.indeterminate = files.some(file => selected.has(file.remote_path)) && !files.every(file => selected.has(file.remote_path)) }}
           onChange={event => setSelected(new Set(event.target.checked ? files.map(file => file.remote_path) : []))} /></th>
           <th scope="col">Nom</th><th scope="col">Type</th><th scope="col" className="align-right">Taille</th></tr></thead>
         <tbody>{listing.items.map(entry => {
           const name = entry.remote_path.split('/').at(-1)
-          const checked = selected.has(entry.remote_path)
+          const system = isSystemPath(entry.remote_path)
+          const checked = !system && selected.has(entry.remote_path)
           return <tr key={entry.remote_path} className={checked ? 'selected' : undefined}>
-            <td>{!entry.directory && <input type="checkbox" aria-label={'Sélectionner ' + name} checked={checked} onChange={event => {
+            <td>{!entry.directory && !system && <input type="checkbox" aria-label={'Sélectionner ' + name} checked={checked} onChange={event => {
               const next = new Set(selected)
               if (event.target.checked) next.add(entry.remote_path)
               else next.delete(entry.remote_path)
@@ -91,13 +99,13 @@ export function MediaBrowser({ deck, path, listing, selected, setSelected, navig
             <th scope="row">{entry.directory
               ? <button className="cell-button" title={name} onClick={() => navigate(entry.remote_path)}><Folder size={15} /><span className="truncate">{name}</span></button>
               : <span className="cell-button" title={name}><FileVideo size={15} /><span className="truncate">{name}</span></span>}</th>
-            <td className="muted">{entry.directory ? 'Dossier' : 'Média'}</td>
+            <td className="muted">{system ? 'Système' : entry.directory ? 'Dossier' : 'Média'}</td>
             <td className="align-right mono">{formatBytes(entry.size)}</td>
           </tr>
         })}</tbody>
       </table>
     </div>}
-    <div className="panel-foot"><span>{listing.items.length} éléments</span><span>{selected.size} sélectionné(s)</span></div>
+    <div className="panel-foot"><span>{listing.items.length} éléments</span><span>{selected.size} sélectionné(s)</span>{hiddenCount > 0 && <span>{hiddenCount} système masqué(s)</span>}</div>
   </Panel>
 }
 

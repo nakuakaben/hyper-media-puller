@@ -306,3 +306,5 @@ dialog > .panel { border: 0; border-radius: 0; }
 .report-entry { padding: 12px; border: 1px solid var(--ui-border); border-radius: var(--ui-radius-md); }
 .report-json { display: block; width: 100%; min-height: 350px; resize: vertical; padding: 12px; color: var(--ui-fg); background: var(--ui-panel-2); border: 1px solid var(--ui-border); }
 .reports-layout .toolbar { align-items: end; }
+
+.system-toggle { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; color: var(--ui-muted); font-size: 11px; }

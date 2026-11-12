@@ -121,3 +121,11 @@ La fusion se fait directement en Squash après réussite de tous les contrôles 
 ## Lot 5 · Offloads réels
 
 La Preview raccorde la destination native, les transferts Rust FTP et le rapport de session JSON versionné. La file, la destination et les options sont exposées par IPC typé. Le moteur conserve ses garanties SAFE et Electron V1 reste inchangé. Le Studio Mini 2017, les partages réseau, les retraits de volume et l’interface interactive Windows restent à qualifier. Les limites APFS, NTFS et exFAT sont suivies dans le [rapport du lot 5](LOT5_VALIDATION_REPORT.md).
+
+## Lot 6 · Qualification macOS
+
+### Qualification physique — Studio HD Plus
+
+Le premier offload terrain confirmé concerne un Studio HD Plus et un seul fichier de 101,1 Mio sur `/sd2`. La copie et la relecture locale concordent en SHA-256. Le filtre d’affichage des entrées système et les ajustements de lisibilité sont intégrés à la Preview. [Preuves et périmètre du test](MACOS_QUALIFICATION.md)
+
+Les essais synthétiques couvrent APFS, le disque plein, le retrait d’une image APFS et les transferts FTP de plus de 4 Gio. L’image exFAT macOS a refusé l’opération sans écrasement. Les prochains essais ciblent les gros médias sur le Studio HD Plus, plusieurs appareils, SMB et la veille du Mac. Le Studio Mini 2017 reste au backlog. [Rapport du lot 6](LOT6_VALIDATION_REPORT.md)

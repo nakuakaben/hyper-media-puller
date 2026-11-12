@@ -192,3 +192,21 @@ async fn destination_denies_subdirectory_creation_by_ntfs_acl() {
     assert_eq!(result.err().unwrap().code, ErrorCode::PermissionDenied);
     assert_eq!(fs::read_dir(protected).unwrap().count(), 0);
 }
+
+#[tokio::test]
+async fn long_media_name_in_destination_with_spaces_and_accents() {
+    let root = workspace();
+    let folder = root.path().join(format!(
+        "Régie extérieure {}",
+        "session ".repeat(9).trim_end()
+    ));
+    fs::create_dir(&folder).unwrap();
+    let disk = LocalDestination::open(folder.clone()).await.unwrap();
+    let name = format!("{}.mov", "long-take-".repeat(19));
+    let reservation = held(reserve(&disk, &name, DuplicatePolicy::Rename).await);
+    stage(&disk, &reservation, b"clip").await;
+    let published = disk.commit(&reservation, DuplicatePolicy::Rename).unwrap();
+    disk.release(&reservation);
+    assert_eq!(fs::read(published).unwrap(), b"clip");
+    assert_eq!(fs::read(folder.join(name)).unwrap(), b"clip");
+}

@@ -1,8 +1,12 @@
 import { FileCheck2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { errorMessage, offload, schemaVersion, scopeLabel, type Queue, type Report } from './contracts'
+import { checksumLabels, duplicateLabels } from './settings'
 import { formatBytes } from './demo'
 import { Badge, Empty, Loading, Panel, statuses } from './ui'
+
+const seconds = new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+const formatDuration = (milliseconds: string) => seconds.format(Number(milliseconds) / 1000) + ' s'
 
 export function RealReports({ queue }: { queue?: Queue }) {
   const batches = queue?.destinations ?? []
@@ -49,7 +53,7 @@ export function RealReports({ queue }: { queue?: Queue }) {
                 <dt>Destination</dt><dd className="mono break-path">{transfer.destination ?? transfer.requested_destination}</dd>
                 <dt>Attendu</dt><dd className="mono">{formatBytes(transfer.progress.total)}</dd>
                 <dt>Reçu / écrit</dt><dd className="mono">{formatBytes(transfer.progress.received)} / {formatBytes(transfer.progress.written)}</dd>
-                <dt>Durée</dt><dd>{elapsed_millis === null ? '—' : (Number(elapsed_millis) / 1000).toFixed(1) + ' s'}</dd>
+                <dt>Durée</dt><dd>{elapsed_millis === null ? '—' : formatDuration(elapsed_millis)}</dd>
                 {transfer.checksum && <>
                   <dt>Portée</dt><dd>{scopeLabel(transfer.checksum.scope)}</dd>
                   {transfer.checksum.md5 && <><dt>MD5</dt><dd className="mono break-path">{transfer.checksum.md5}</dd></>}
@@ -66,10 +70,10 @@ export function RealReports({ queue }: { queue?: Queue }) {
     <Panel title="Informations du lot" icon={FileCheck2}>
       {report ? <div className="panel-body stack">
         <dl className="key-values"><dt>Création</dt><dd>{new Date(Number(report.batch.created_at_millis)).toLocaleString('fr-FR')}</dd>
-          <dt>Durée</dt><dd>{(Number(report.elapsed_millis) / 1000).toFixed(1)} s</dd>
+          <dt>Durée</dt><dd>{formatDuration(report.elapsed_millis)}</dd>
           <dt>Dossier</dt><dd className="mono break-path">{report.batch.destination}</dd>
-          <dt>Doublons</dt><dd>{report.batch.options.batch.duplicate}</dd>
-          <dt>Checksums</dt><dd>{report.batch.options.batch.checksum}</dd>
+          <dt>Doublons</dt><dd>{duplicateLabels[report.batch.options.batch.duplicate]}</dd>
+          <dt>Checksums</dt><dd>{checksumLabels[report.batch.options.batch.checksum]}</dd>
           <dt>Concurrence</dt><dd>{report.batch.options.global_limit} globale · {report.batch.options.recorder_limit} par HyperDeck</dd>
         </dl>
         <p>Une comparaison flux/local vérifie la relecture de la copie à partir des octets reçus.</p>

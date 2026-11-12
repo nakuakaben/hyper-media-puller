@@ -94,13 +94,16 @@ fn no_replace(source: &Dir, partial: &str, target: &Dir, name: &str) -> io::Resu
             name,
             rustix::fs::RenameFlags::NOREPLACE,
         )
-        .map_err(io::Error::from)
+        .map_err(|error| {
+            if error == rustix::io::Errno::NOTSUP || error == rustix::io::Errno::OPNOTSUPP {
+                io::ErrorKind::Unsupported.into()
+            } else {
+                error.into()
+            }
+        })
     }
     #[cfg(not(any(target_os = "macos", target_os = "linux")))]
     {
-        if metadata(target, name)?.is_some() {
-            return Err(io::ErrorKind::AlreadyExists.into());
-        }
         source.hard_link(partial, target, name)?;
         // The final entry has been published. Cleanup cannot undo that publication.
         let _ = source.remove_file(partial);
@@ -156,9 +159,43 @@ impl LocalDestination {
         root.create_dir_with(&stage_name, &builder)?;
         let staged = (|| {
             let stage = root.open_dir(&stage_name)?;
-            // Probe only names created by this process, inside its staging directory.
-            stage.open_with("probe", OpenOptions::new().write(true).create_new(true))?;
-            let published = no_replace(&stage, "probe", &stage, "probe-final");
+            // Exercise both outcomes using only names in the private staging directory.
+            let published = (|| {
+                let create = |name, bytes: &[u8]| {
+                    stage
+                        .open_with(name, OpenOptions::new().write(true).create_new(true))?
+                        .write_all(bytes)
+                };
+                create("probe", b"source")?;
+                create("probe-final", b"existing")?;
+                let conflict = match no_replace(&stage, "probe", &stage, "probe-final") {
+                    Err(error) => error,
+                    Ok(()) => {
+                        return Err(io::Error::new(
+                            io::ErrorKind::Unsupported,
+                            "Le volume a autorisé un remplacement",
+                        ));
+                    }
+                };
+                if conflict.kind() != io::ErrorKind::AlreadyExists {
+                    return Err(conflict);
+                }
+                if stage.read("probe")? != b"source" || stage.read("probe-final")? != b"existing" {
+                    return Err(io::Error::new(
+                        io::ErrorKind::Unsupported,
+                        "Le volume ne protège pas une destination existante",
+                    ));
+                }
+                stage.remove_file("probe-final")?;
+                no_replace(&stage, "probe", &stage, "probe-final")?;
+                if stage.read("probe-final")? != b"source" {
+                    return Err(io::Error::new(
+                        io::ErrorKind::Unsupported,
+                        "La sonde de publication est incohérente",
+                    ));
+                }
+                Ok(())
+            })();
             let _ = stage.remove_file("probe");
             let _ = stage.remove_file("probe-final");
             published.map_err(|error| {

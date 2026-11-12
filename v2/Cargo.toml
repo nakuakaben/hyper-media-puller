@@ -25,3 +25,7 @@ unsafe_code = "forbid"
 
 [workspace.lints.clippy]
 all = "warn"
+
+# Keep the full-size FTP fixture practical while preserving debug checks in HMP.
+[profile.test.package.sha2]
+opt-level = 3

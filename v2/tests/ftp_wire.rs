@@ -37,6 +37,8 @@ struct Script {
     listing_rules: Vec<(String, u16)>,
     listing: Vec<u8>,
     payload: Vec<u8>,
+    repeat_payload: Option<usize>,
+    data_pause: Duration,
     completion: Completion,
     list_completion: Option<u16>,
 }
@@ -172,7 +174,17 @@ async fn serve(
                     } else {
                         &script.payload
                     };
-                    data.write_all(bytes).await?;
+                    let repeats = if verb == "RETR" {
+                        script.repeat_payload.unwrap_or(1)
+                    } else {
+                        1
+                    };
+                    for _ in 0..repeats {
+                        data.write_all(bytes).await?;
+                    }
+                    if verb == "RETR" && !script.data_pause.is_zero() {
+                        tokio::time::sleep(script.data_pause).await;
+                    }
                     if verb == "RETR" && matches!(script.completion, Completion::HoldData) {
                         let mut probe = [0; 1];
                         assert_eq!(data.read(&mut probe).await?, 0);
@@ -495,7 +507,14 @@ async fn start(engine: &Engine, jobs: Vec<JobRequest>, checksum: ChecksumMode) {
     engine.start(batch).await.unwrap();
 }
 async fn wait(engine: &Engine, predicate: impl Fn(&Snapshot) -> bool) -> Snapshot {
-    tokio::time::timeout(Duration::from_secs(10), async {
+    wait_with_timeout(engine, Duration::from_secs(10), predicate).await
+}
+async fn wait_with_timeout(
+    engine: &Engine,
+    timeout: Duration,
+    predicate: impl Fn(&Snapshot) -> bool,
+) -> Snapshot {
+    tokio::time::timeout(timeout, async {
         let mut subscription = engine.subscribe().await.unwrap();
         loop {
             let snapshot = engine.snapshot().await.unwrap();
@@ -848,4 +867,71 @@ async fn real_destination_survives_interruption_and_shutdown_while_another_deck_
     }
     assert!(std::path::Path::new(closed.jobs[2].destination().unwrap()).is_file());
     assert_eq!(std::fs::read_dir(folder.path()).unwrap().count(), 2);
+}
+
+#[tokio::test]
+async fn streams_past_four_gib_and_matches_independent_sha256() {
+    const SIZE: u64 = (4_u64 << 30) + (1 << 20);
+    let server = Server::start(
+        220,
+        Script {
+            payload: (0..=255_u8).cycle().take(1 << 20).collect(),
+            repeat_payload: Some(4097),
+            ..Default::default()
+        },
+    )
+    .await;
+    let folder = tempfile::tempdir().unwrap();
+    let (engine, _) = production_engine(folder.path(), client()).await;
+    start(
+        &engine,
+        vec![request(&server, Some(SIZE))],
+        ChecksumMode::Sha256,
+    )
+    .await;
+    let snapshot = wait_with_timeout(&engine, Duration::from_secs(360), |state| {
+        state.active == 0 && state.jobs.iter().all(|job| job.status().terminal())
+    })
+    .await;
+    let job = &snapshot.jobs[0];
+    assert_eq!(job.status(), TransferStatus::Verified, "{:?}", job.error());
+    assert_eq!(job.progress().received, SIZE);
+    assert_eq!(job.progress().written, SIZE);
+    assert_eq!(job.progress().verified, SIZE);
+    assert_eq!(
+        std::fs::metadata(job.destination().unwrap()).unwrap().len(),
+        SIZE
+    );
+    assert_eq!(
+        job.checksum().unwrap().sha256.as_deref(),
+        Some("117b24fae2fe12a5145b1b11ec31540994554977cf4a357f7cb602bc5c9b8de6")
+    );
+    server.assert_read_only();
+    engine.shutdown().await.unwrap();
+}
+
+#[tokio::test]
+async fn transient_data_pause_finishes_when_the_ftp_socket_recovers_before_timeout() {
+    let server = Server::start(
+        221,
+        Script {
+            payload: b"DATA".to_vec(),
+            data_pause: Duration::from_millis(350),
+            ..Default::default()
+        },
+    )
+    .await;
+    let folder = tempfile::tempdir().unwrap();
+    let (engine, _) = production_engine(folder.path(), client()).await;
+    start(
+        &engine,
+        vec![request(&server, Some(4))],
+        ChecksumMode::Sha256,
+    )
+    .await;
+    let snapshot = settled(&engine).await;
+    let job = &snapshot.jobs[0];
+    assert_eq!(job.status(), TransferStatus::Verified);
+    assert_eq!(std::fs::read(job.destination().unwrap()).unwrap(), b"DATA");
+    engine.shutdown().await.unwrap();
 }
