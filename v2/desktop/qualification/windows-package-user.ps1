@@ -11,10 +11,17 @@ try {
     $principal = [Security.Principal.WindowsPrincipal]::new($identity)
     $report.standardUser = -not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
     if (-not $report.standardUser) { throw 'The test must run as a standard user.' }
-    $local = [Environment]::GetFolderPath('LocalApplicationData')
-    if ([string]::IsNullOrEmpty($local)) { throw 'No local application data directory for the test account.' }
+    # Start-Process -Credential inherits the caller's environment on the runner.
+    $profileKey = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\$($identity.User.Value)"
+    $profile = (Get-ItemProperty -LiteralPath $profileKey).ProfileImagePath
+    if (-not (Test-Path -LiteralPath $profile -PathType Container)) { throw 'The test account profile was not loaded.' }
+    $local = Join-Path $profile 'AppData\Local'
+    $env:USERPROFILE = $profile
     $env:LOCALAPPDATA = $local
-    $env:APPDATA = [Environment]::GetFolderPath('ApplicationData')
+    $env:APPDATA = Join-Path $profile 'AppData\Roaming'
+    $env:TEMP = Join-Path $local 'Temp'
+    $env:TMP = $env:TEMP
+    New-Item -ItemType Directory -Force -Path $env:APPDATA, $env:TEMP | Out-Null
     $path = Join-Path $local 'HMP bêta avec espaces'
     $report.webView2 = 'present'
     $report.installerSignature = (Get-AuthenticodeSignature -FilePath $Installer).Status.ToString()
