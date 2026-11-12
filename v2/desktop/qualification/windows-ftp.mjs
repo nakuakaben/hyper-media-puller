@@ -7,6 +7,7 @@ export const files = {
   [`${'plan-long-'.repeat(19)}.mov`]: Buffer.alloc(524288, 0x56),
   'annulation.mov': Buffer.alloc(8 * 1024 * 1024, 0x62),
   'reessai.mov': Buffer.alloc(2 * 1024 * 1024, 0x73),
+  'fermeture.mov': Buffer.alloc(8 * 1024 * 1024, 0x64),
 }
 
 function localAddress() {
@@ -123,7 +124,7 @@ export async function startFixture() {
               }
               for (let at = 0; at < payload.length && !data.destroyed; at += 65536) {
                 await new Promise(resolve => data.write(payload.subarray(at, at + 65536), resolve))
-                if (name === 'annulation.mov') await delay(45)
+                if (name === 'annulation.mov' || name === 'fermeture.mov') await delay(45)
               }
               if (data.destroyed) break
               await new Promise(resolve => data.end(resolve))

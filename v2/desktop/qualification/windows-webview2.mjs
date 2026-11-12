@@ -162,7 +162,7 @@ try {
   await press('Tab', 9)
   assert.equal(await evaluate("document.activeElement.getAttribute('aria-label')"), 'Sélectionner tous les fichiers')
   await press('Space', 32)
-  await dom("document.querySelectorAll('.media-table tbody input:checked').length === 4")
+  await dom(`document.querySelectorAll('.media-table tbody input:checked').length === ${Object.keys(files).length}`)
   await press('Space', 32)
   await dom("document.querySelectorAll('.media-table tbody input:checked').length === 0")
   note('Keyboard focus traversal and keyboard media selection')
@@ -263,12 +263,12 @@ try {
   assert.deepEqual(fixture.errors, [])
   assert.ok(fixture.commands.includes('device info') && fixture.commands.some(command => command.startsWith('RETR /sd2/')))
 
-  await addAndStart('annulation.mov')
-  await dom(`${row('annulation.mov')}?.innerText.includes('Copie')`)
+  await addAndStart('fermeture.mov')
+  await dom(`${row('fermeture.mov')}?.innerText.includes('Copie')`)
   note('Native close requested during an active transfer', await native('close'))
   await waitFor('application exits after orderly shutdown', () => app.exitCode !== null)
   assert.equal(app.exitCode, 0)
-  assert.ok(!(await readdir(destination)).includes('annulation.mov'))
+  assert.ok(!(await readdir(destination)).includes('fermeture.mov'))
   note('Application exited without publishing the cancelled file')
   completed = true
 } catch (error) {
