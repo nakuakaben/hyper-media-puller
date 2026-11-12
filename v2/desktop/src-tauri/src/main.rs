@@ -2,6 +2,8 @@
 
 use hmp_contract::{ErrorDto, MediaEntryDto, RecorderDto, SCHEMA_VERSION};
 mod offload;
+#[cfg(all(windows, feature = "windows-qualification"))]
+mod windows_qualification;
 
 use hmp_core::ports::Cancellation;
 use hmp_domain::TransferError;
@@ -191,6 +193,10 @@ fn main() {
             std::fs::create_dir_all(&profile)?;
             let service = tauri::async_runtime::block_on(async { Offload::new(&profile) })?;
             app.manage(Arc::new(service));
+            #[cfg(all(windows, feature = "windows-qualification"))]
+            if let Some(window) = app.get_webview_window("main") {
+                windows_qualification::start(window);
+            }
             Ok(())
         })
         .on_window_event(|window, event| {

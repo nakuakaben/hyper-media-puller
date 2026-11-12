@@ -93,7 +93,12 @@ jobs:
       - run: npm test
       - run: npm run build
       - run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
-      - run: npm run tauri -- build --debug --no-bundle -- --locked
+      - name: Build the native desktop
+        if: runner.os != 'Windows'
+        run: npm run tauri -- build --debug --no-bundle -- --locked
+      - name: Build the Windows qualification executable
+        if: runner.os == 'Windows'
+        run: npm run tauri -- build --debug --no-bundle --features windows-qualification -- --locked
       - name: Ensure the Microsoft WebView2 Evergreen Runtime
         if: runner.os == 'Windows'
         shell: pwsh
@@ -103,6 +108,9 @@ jobs:
         run: node qualification/windows-webview2.mjs
       - run: cargo clippy --manifest-path src-tauri/Cargo.toml --locked --all-targets -- -D warnings
       - run: cargo test --manifest-path src-tauri/Cargo.toml --locked
+      - name: Build the normal Windows executable
+        if: runner.os == 'Windows'
+        run: npm run tauri -- build --debug --no-bundle -- --locked
       - name: Upload Windows qualification evidence
         if: always() && runner.os == 'Windows'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

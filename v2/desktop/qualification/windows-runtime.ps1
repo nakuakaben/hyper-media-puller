@@ -25,3 +25,4 @@ if (!$runtime) {
 if (!$runtime) { throw 'WebView2 Runtime executable is missing' }
 Write-Output ("WebView2 Runtime " + $runtime.VersionInfo.ProductVersion)
 Add-Content -Path $env:GITHUB_ENV -Value ("HMP_WEBVIEW2_RUNTIME=" + $runtime.DirectoryName)
+Add-Content -Path $env:GITHUB_ENV -Value ("HMP_WEBVIEW2_VERSION=" + $runtime.VersionInfo.ProductVersion)

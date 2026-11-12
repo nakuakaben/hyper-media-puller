@@ -1,8 +1,7 @@
 import assert from 'node:assert/strict'
 import { spawn, execFile } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
-import { createServer } from 'node:net'
+import { mkdir, mkdtemp, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { promisify } from 'node:util'
@@ -34,47 +33,23 @@ async function waitFor(description, operation, timeout = 20000) {
   throw new Error('Timed out: ' + description, { cause: failure })
 }
 
-async function debuggingPort() {
-  const server = createServer()
-  await new Promise((ok, fail) => {
-    server.once('error', fail)
-    server.listen(0, '127.0.0.1', ok)
-  })
-  const port = server.address().port
-  await new Promise(ok => server.close(ok))
-  return port
-}
-
-async function cdp(url) {
-  const socket = new WebSocket(url)
-  await new Promise((ok, fail) => {
-    socket.addEventListener('open', ok, { once: true })
-    socket.addEventListener('error', fail, { once: true })
-  })
-  let id = 0
-  const calls = new Map()
-  socket.addEventListener('message', ({ data }) => {
-    const message = JSON.parse(data)
-    const call = calls.get(message.id)
-    if (!call) return
-    calls.delete(message.id)
-    clearTimeout(call.timer)
-    if (message.error) call.reject(new Error(message.error.message))
-    else call.resolve(message.result)
-  })
+function embeddedWebView(root) {
+  let sequence = 0
   return {
-    send(method, params = {}) {
-      return new Promise((resolve, reject) => {
-        const callId = ++id
-        const timer = setTimeout(() => {
-          calls.delete(callId)
-          reject(new Error('CDP timeout: ' + method))
-        }, 8000)
-        calls.set(callId, { resolve, reject, timer })
-        socket.send(JSON.stringify({ id: callId, method, params }))
-      })
+    async send(method, params = {}) {
+      const id = ++sequence
+      const request = join(root, 'request.tmp')
+      const response = join(root, `response-${id}.json`)
+      await writeFile(request, JSON.stringify({ id, method, params }))
+      await rename(request, join(root, 'request.json'))
+      const result = await waitFor(method, async () => {
+        try { return JSON.parse(await readFile(response, 'utf8')) }
+        catch (error) { if (error.code !== 'ENOENT') throw error }
+      }, 12000)
+      await rm(response)
+      if (result.error) throw new Error(method + ': ' + result.error)
+      return result.result
     },
-    close: () => socket.close(),
   }
 }
 
@@ -91,30 +66,20 @@ let fixture, app, browser
 let completed = false
 try {
   fixture = await startFixture()
-  const port = await debuggingPort()
   assert.ok(process.env.HMP_WEBVIEW2_RUNTIME, 'WebView2 Runtime discovery did not run')
   app = spawn(executable, [], {
     env: {
       ...process.env,
       WEBVIEW2_USER_DATA_FOLDER: join(root, 'webview'),
       WEBVIEW2_BROWSER_EXECUTABLE_FOLDER: process.env.HMP_WEBVIEW2_RUNTIME,
-      WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-address=127.0.0.1 --remote-debugging-port=${port}`,
+      HMP_WINDOWS_QUALIFICATION: root,
     },
     windowsHide: false,
   })
   app.stdout.on('data', chunk => stdout.push(String(chunk)))
   app.stderr.on('data', chunk => stdout.push(String(chunk)))
   app.on('error', error => stdout.push(String(error)))
-  const endpoint = `http://127.0.0.1:${port}`
-  const version = await waitFor('WebView2 DevTools', async () => {
-    const response = await fetch(endpoint + '/json/version', { signal: AbortSignal.timeout(1500) })
-    return response.ok && response.json()
-  }, 40000)
-  const target = await waitFor('embedded HMP WebView2 target', async () => {
-    const targets = await (await fetch(endpoint + '/json/list', { signal: AbortSignal.timeout(1500) })).json()
-    return targets.find(item => item.type === 'page' && item.url.includes('tauri.localhost') && item.webSocketDebuggerUrl)
-  })
-  browser = await cdp(target.webSocketDebuggerUrl)
+  browser = embeddedWebView(root)
   const send = browser.send
   const evaluate = async expression => {
     const result = await send('Runtime.evaluate', { expression, returnByValue: true })
@@ -161,9 +126,9 @@ try {
 
   await dom(bodyContains('Mode réel'))
   const agent = await evaluate('navigator.userAgent')
-  report.webview2 = { browser: version.Browser, agent }
-  assert.match(agent, /Edg\//)
-  note('Windows x64 executable running in its embedded WebView2', version.Browser)
+  report.webview2 = { runtime: process.env.HMP_WEBVIEW2_VERSION, agent }
+  assert.match(agent, /Chrome\//)
+  note('Windows x64 executable running in its embedded WebView2', report.webview2.runtime)
   report.appearance = await evaluate(`(() => {
     const root = getComputedStyle(document.documentElement)
     return {
@@ -328,7 +293,6 @@ try {
       await writeFile(join(artifacts, 'failure.png'), Buffer.from(data, 'base64'))
     } catch {}
   }
-  browser?.close()
   if (app?.exitCode === null) app.kill()
   fixture?.close()
   await writeFile(join(artifacts, 'evidence.json'), JSON.stringify(report, null, 2) + '\n')
