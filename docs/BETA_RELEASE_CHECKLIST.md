@@ -21,6 +21,8 @@ Décision actuelle **NO-GO publication**. [Procédure et résultats d’acceptat
 
 ## Installation et vérification
 
+- [ ] **BLOCKER** Valider les captures de restauration, puis construire les nouveaux candidats avec l’icône historique et vérifier leur contenu et leurs empreintes. [Restauration graphique](BETA_VISUAL_RESTORATION.md)
+
 - [x] **IMPORTANT** Construire et contrôler le `.app` ARM64 et le DMG. Vérifier la signature ad hoc et le minimum macOS 11.0.
 - [x] **IMPORTANT** Télécharger le DMG via Safari, vérifier la quarantaine et relever le rejet Gatekeeper.
 - [ ] **BLOCKER** Exercer l’ouverture autorisée par application sur un compte macOS standard et vérifier le remplacement, le transfert et le retrait.

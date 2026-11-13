@@ -30,7 +30,7 @@
   "bundle": {
     "active": true,
     "targets": "app",
-    "icon": ["icons/icon.png", "icons/icon.ico", "icons/icon.icns"],
+    "icon": ["../../../build/icon.png", "../../../build/icon.ico", "../../../build/icon.icns"],
     "resources": {
       "../../../LICENSE": "licenses/HMP-MIT.txt",
       "../licenses/": "licenses/"
@@ -40,7 +40,11 @@
       "bundleVersion": "1"
     },
     "windows": {
-      "nsis": { "installMode": "currentUser" },
+      "nsis": {
+        "installMode": "currentUser",
+        "installerIcon": "../../../build/icon.ico",
+        "uninstallerIcon": "../../../build/icon.ico"
+      },
       "webviewInstallMode": { "type": "downloadBootstrapper", "silent": true }
     }
   }

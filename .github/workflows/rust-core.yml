@@ -92,6 +92,13 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+      - name: Verify public frontend excludes internal device images
+        shell: bash
+        run: |
+          if find dist -type f -iname 'hyperdeck-*.png' | grep -q .; then
+            echo 'The public frontend contains restricted device images.'
+            exit 1
+          fi
       - run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
       - name: Build the native desktop
         if: runner.os != 'Windows'

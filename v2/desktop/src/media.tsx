@@ -3,6 +3,7 @@ import { useState } from 'react'
 import type { Deck, Media } from './contracts'
 import { isSystemPath, selectableMedia } from './media-visibility'
 import { formatBytes } from './demo'
+import { deviceImages } from './device-images'
 import { Destination, Options, type Preferences } from './settings'
 import { Badge, Empty, Loading, Panel } from './ui'
 
@@ -19,9 +20,11 @@ export function Recorders({ decks, active, demo, native, onSelect, onConnect }: 
       value={filter} onChange={event => setFilter(event.target.value)} placeholder="Rechercher" /></label></div>
     <div className="recorder-list">
       {visible.map(({ recorder, model }) => {
+        const image = deviceImages[model.toLowerCase()]
         const offline = demo && recorder.id === 'legacy'
         return <button key={recorder.id} className="recorder" aria-pressed={active === recorder.id} onClick={() => onSelect(recorder.id)}>
-          <span className="device-icon"><Server size={23} aria-hidden="true" /></span>
+          <span className="device-icon">{image ? <img src={image} alt="" /> :
+            <span title="Visuel du modèle indisponible dans ce build"><Server size={23} aria-hidden="true" /></span>}</span>
           <span className="device-label"><strong className="truncate" title={recorder.name}>{recorder.name}</strong>
             {model !== recorder.name && <span className="truncate" title={model}>{model}</span>}
             <span className="mono truncate">{offline ? "Hors ligne" : recorder.host}</span></span>
