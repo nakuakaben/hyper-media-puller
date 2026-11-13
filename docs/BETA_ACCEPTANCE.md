@@ -21,6 +21,8 @@ Le banc Windows WebView2 couvre séparément le retrait persistant, l’ajout vo
 
 La publication reste en **NO-GO**. Les essais des installateurs depuis le canal final, les protections système et les autres critères ouverts continuent d’être suivis dans la [checklist bêta](BETA_RELEASE_CHECKLIST.md).
 
+La [procédure de qualification finale](BETA_QUALIFICATION_RUNBOOK.md) détaille les preuves attendues et les commandes Gatekeeper, SmartScreen et WebView2.
+
 ## Essais manuels à regrouper
 
 Préparer un Mac ARM64 avec une session locale standard distincte, ainsi qu’un PC ou une VM **Windows x64** avec un compte standard, une session graphique et un instantané propre. Sur Windows, commencer par un environnement où WebView2 Evergreen est réellement absent. Vérifier son absence avec la méthode de détection Microsoft avant l’installation. Pour la seconde passe, garder le runtime installé. Prévoir un réseau privé de test avec les ports TCP 9993 et 21 accessibles et un HyperDeck de test au repos ou un serveur synthétique. Un test sur serveur synthétique doit être enregistré comme tel. [Détection et distribution WebView2](https://learn.microsoft.com/microsoft-edge/webview2/concepts/distribution)
