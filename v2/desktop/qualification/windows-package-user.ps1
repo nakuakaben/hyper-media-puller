@@ -48,7 +48,7 @@ try {
     $shell = New-Object -ComObject WScript.Shell
     $shortcuts = @(
         (Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\HMP.lnk')
-        (Join-Path $shell.SpecialFolders.Item('Desktop') 'HMP.lnk')
+        (Join-Path $profile 'Desktop\HMP.lnk')
     )
     foreach ($shortcut in $shortcuts) {
         if (-not (Test-Path -LiteralPath $shortcut -PathType Leaf) -or $shell.CreateShortcut($shortcut).TargetPath -ne $exe) {
