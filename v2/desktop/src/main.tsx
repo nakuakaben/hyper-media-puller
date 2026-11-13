@@ -276,7 +276,7 @@ function App() {
   return <div className="app">
     <main className="workspace" id="main-content">
       <header className="workspace-head">
-        <div className="app-name"><AppWindow size={18} /><span>HyperDeck Media Puller</span><ChevronRight size={13} />
+        <div className="app-name"><AppWindow size={18} /><span>HMP</span><ChevronRight size={13} />
           <h1>{pages.find(item => item.id === page)?.title}</h1></div>
         <div className="row"><Badge label={demo ? 'Mode démonstration' : bridge.native ? 'Mode réel' : 'Aperçu navigateur'} tone={demo ? 'warn' : 'neutral'} />
           <button disabled={!demo && (realRunning || real.busy)} onClick={toggleDemo}>{demo ? 'Quitter la démonstration' : 'Ouvrir la démonstration'}</button></div>

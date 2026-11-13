@@ -113,6 +113,13 @@ jobs:
       - name: Exercise the native Windows WebView2 offload
         if: runner.os == 'Windows'
         run: node qualification/windows-webview2.mjs
+      - name: Check the internal build in native Windows WebView2
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          npm run tauri -- build --debug --no-bundle --config src-tauri/tauri.internal.conf.json --features windows-qualification -- --locked
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node qualification/windows-webview2.mjs src-tauri/target/debug/hmp-v2-preview.exe "$env:RUNNER_TEMP/hmp-internal-qualification" --internal
       - run: cargo clippy --manifest-path src-tauri/Cargo.toml --locked --all-targets -- -D warnings
       - run: cargo test --manifest-path src-tauri/Cargo.toml --locked
       - name: Build the normal Windows executable

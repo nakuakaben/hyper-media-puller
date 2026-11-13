@@ -1,5 +1,4 @@
 {
-  "productName": "HyperDeck Media Puller V2 Internal",
   "identifier": "fr.tktprod.hyperdeck-media-puller.v2.internal",
   "build": {
     "beforeBuildCommand": "npm run build:internal",

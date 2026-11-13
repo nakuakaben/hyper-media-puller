@@ -14,7 +14,7 @@ Depuis `v2/desktop` après `npm ci` :
 npm run tauri -- build --config src-tauri/tauri.internal.conf.json -- --locked
 ```
 
-Le nom et l’identifiant du bundle interne sont distincts. Les quatre modèles sont visibles dans la démonstration interne. La liste du mode réel continue de présenter les appareils identifiés. Pour fabriquer un candidat destiné à la distribution, utiliser la configuration Tauri standard et vérifier le contenu de son frontend et de ses packages.
+Les deux configurations affichent **HMP** dans la fenêtre et les menus système. Leurs identifiants Tauri et profils de données restent distincts et inchangés. Conserver les deux bundles dans des dossiers séparés, car ils portent le même nom `HMP.app`. Les quatre modèles sont visibles dans la démonstration interne. La liste du mode réel continue de présenter les appareils identifiés. Pour fabriquer un candidat destiné à la distribution, utiliser la configuration Tauri standard et vérifier le contenu de son frontend et de ses packages.
 
 ## Comparaison visuelle
 

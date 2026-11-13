@@ -1,5 +1,5 @@
 {
-  "productName": "HyperDeck Media Puller V2 Preview",
+  "productName": "HMP",
   "version": "../package.json",
   "identifier": "fr.tktprod.hyperdeck-media-puller.v2.preview",
   "build": {
@@ -12,7 +12,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "HyperDeck Media Puller · V2 bêta",
+        "title": "HMP",
         "width": 1280,
         "height": 760,
         "minWidth": 960,
