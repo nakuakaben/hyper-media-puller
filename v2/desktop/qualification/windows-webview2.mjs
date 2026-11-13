@@ -13,6 +13,7 @@ const execute = promisify(execFile)
 const windowHelper = fileURLToPath(new URL('./windows-window.ps1', import.meta.url))
 const artifacts = resolve(process.argv[3] ?? 'windows-qualification')
 const executable = resolve(process.argv[2] ?? 'src-tauri/target/debug/hmp-v2-preview.exe')
+const internal = process.argv.includes('--internal')
 assert.equal(process.platform, 'win32', 'Native Windows required')
 assert.equal(process.arch, 'x64', 'Native x64 test runner required')
 assert.equal(process.env.GITHUB_ACTIONS, 'true', 'Use an isolated Windows CI profile')
@@ -109,13 +110,22 @@ try {
       await send('Input.dispatchKeyEvent', { type, key: key === 'Space' ? ' ' : key, code: key, windowsVirtualKeyCode: virtualKey, nativeVirtualKeyCode: virtualKey })
     }
   }
-  const navigate = name => click(`[...document.querySelectorAll('nav button')].find(b => b.textContent.trim() === ${JSON.stringify(name)})`)
+  async function expectBreadcrumb(name) {
+    await dom(`document.querySelector('.app-name > span')?.textContent === 'HMP' &&
+      document.querySelector('.app-name > h1')?.textContent === ${JSON.stringify(name)}`)
+    assert.equal(await evaluate("document.querySelector('.status-bar > span:last-child').textContent"), 'V2 bêta 0.1.0-beta.1')
+  }
+  async function navigate(name) {
+    await click(`[...document.querySelectorAll('nav button')].find(b => b.textContent.trim() === ${JSON.stringify(name)})`)
+    await expectBreadcrumb(name)
+  }
   async function native(action) {
     const args = ['-NoProfile', '-NonInteractive', '-Sta', '-ExecutionPolicy', 'Bypass', '-File', windowHelper, '-AppProcess', String(app.pid), '-Action', action]
     const result = await execute('powershell.exe', args, { timeout: 26000, windowsHide: true })
     return result.stdout.trim()
   }
   async function shot(name) {
+    if (internal) return
     await send('Page.enable')
     const { data } = await send('Page.captureScreenshot', { format: 'png' })
     const png = Buffer.from(data, 'base64')
@@ -125,6 +135,14 @@ try {
   }
 
   await dom(bodyContains('Mode réel'))
+  await expectBreadcrumb('Médias')
+  if (internal) {
+    await click(button('Ouvrir la démonstration'))
+    await dom("document.querySelectorAll('.device-icon img').length === 4 && [...document.querySelectorAll('.device-icon img')].every(img => img.complete && img.naturalWidth > 0)")
+    await click(button('Quitter la démonstration'))
+    await dom(bodyContains('Mode réel'))
+    note('All four internal model images load in WebView2')
+  }
   const agent = await evaluate('navigator.userAgent')
   report.webview2 = { runtime: process.env.HMP_WEBVIEW2_VERSION, agent }
   assert.match(agent, /Chrome\//)
@@ -203,6 +221,7 @@ try {
   await dom("[...document.querySelectorAll('.queue-table tbody tr')].filter(row => row.innerText.includes('Vérifié')).length === 2")
   for (const name of [first, long]) assert.deepEqual(await readFile(join(destination, name)), files[name])
   note('Two verified files match their original bytes on the selected NTFS destination')
+  await navigate('Transferts')
   await shot('02-transferts')
   await navigate('Rapports')
   await dom(bodyContains('Flux reçu comparé à sa relecture locale'))
@@ -301,7 +320,7 @@ try {
   throw error
 } finally {
   report.completed = completed
-  if (!completed && browser) {
+  if (!completed && browser && !internal) {
     try {
       const { data } = await browser.send('Page.captureScreenshot', { format: 'png' })
       await writeFile(join(artifacts, 'failure.png'), Buffer.from(data, 'base64'))

@@ -1,5 +1,7 @@
 # Acceptation de HMP V2 0.1.0-beta.1
 
+Les preuves ci-dessous portent sur les installateurs historiques des lots 9 à 11. Après validation graphique, construire et vérifier de nouveaux candidats avant d’appliquer cette procédure. [Restauration graphique](BETA_VISUAL_RESTORATION.md)
+
 **NO-GO pour la publication.** Les deux packages sont prêts pour les essais d’acceptation. Les étapes ci-dessous exigent un compte macOS standard distinct et un environnement Windows x64 propre avec session graphique.
 
 ## Résultats disponibles

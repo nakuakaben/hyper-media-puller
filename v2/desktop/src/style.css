@@ -202,6 +202,7 @@ button.recorder {
 button.recorder:focus-visible { outline-offset: -3px; }
 button.recorder[aria-pressed="true"] { background: #1177d724; box-shadow: inset 2px 0 var(--ui-selection); }
 .device-icon { display: grid; place-items: center; color: var(--ui-muted); }
+.device-icon img { width: 56px; height: 33px; object-fit: contain; }
 .device-label { min-width: 0; display: grid; gap: 2px; }
 .device-label span { color: var(--ui-muted); font-size: 10.5px; }
 .device-dot { width: 6px; height: 6px; background: #a1a1aa; border-radius: 50%; }

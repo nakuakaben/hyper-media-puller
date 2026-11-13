@@ -16,6 +16,8 @@ Utilisez les fichiers provenant du canal approuvé par le projet et vérifiez le
 3. Le NSIS et le binaire sont sans signature Authenticode. SmartScreen peut avertir ou bloquer le premier lancement depuis un téléchargement. Si le poste bloque l’exécution, suivez sa politique ou contactez son administrateur. [SmartScreen](https://learn.microsoft.com/windows/apps/package-and-deploy/smartscreen-reputation)
 4. Pour mettre à jour, terminez les copies, quittez HMP et lancez le nouvel installateur vérifié avec le même compte. Pour désinstaller, utilisez **Paramètres → Applications → Applications installées**. Lisez les options de nettoyage avant de confirmer. Le profil de transfert se trouve sous `%APPDATA%\fr.tktprod.hyperdeck-media-puller.v2.preview`. Les médias copiés restent à destination.
 
+Pour passer d’une ancienne candidate au nom long à **HMP**, retirez l’ancien bundle macOS après avoir copié `HMP.app`. Sous Windows, l’ancien nom peut rester dans **Applications installées** et dans les raccourcis. Désinstallez l’ancienne entrée avant d’installer HMP, en laissant décochée la suppression des données. Les deux noms utilisent le même profil de données pour la configuration standard.
+
 ## Premier transfert
 
 Utilisez un réseau local de confiance et un dossier APFS ou NTFS inscriptible. Ajoutez le recorder, sélectionnez un média, choisissez le dossier, ajoutez le lot à la file et démarrez-le. Choisissez SHA-256 pour vérifier le flux reçu contre la copie relue. Conservez le rapport avant de fermer la session et expurgez les chemins, les noms et les informations réseau avant de le partager. La V2 refuse exFAT si la publication exclusive est indisponible. SMB et les modèles autres que ceux du rapport restent à qualifier.

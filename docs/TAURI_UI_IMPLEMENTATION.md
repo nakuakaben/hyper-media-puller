@@ -19,7 +19,7 @@ Vite écoute sur `127.0.0.1:1420` en développement. Avec `npm run dev`, ouvrir 
 
 ```sh
 npm run tauri -- build --debug --bundles app -- --locked
-open "src-tauri/target/debug/bundle/macos/HyperDeck Media Puller V2 Preview.app"
+open "src-tauri/target/debug/bundle/macos/HMP.app"
 ```
 
 Sur Windows, `npm run tauri -- build --debug --no-bundle -- --locked` construit `src-tauri/target/debug/hmp-v2-preview.exe`. Les contrôles complémentaires sont `npm run build`, puis `cargo fmt --manifest-path src-tauri/Cargo.toml --check`, `cargo clippy --manifest-path src-tauri/Cargo.toml --locked --all-targets -- -D warnings` et `cargo test --manifest-path src-tauri/Cargo.toml --locked`.
