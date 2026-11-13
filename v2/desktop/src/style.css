@@ -208,6 +208,11 @@ button.recorder[aria-pressed="true"] { background: #1177d724; box-shadow: inset 
 .device-dot { width: 6px; height: 6px; background: #a1a1aa; border-radius: 50%; }
 .device-dot.available { background: var(--ui-ok); }
 .device-dot.offline { background: #f87171; }
+.device-dot.unconfirmed { background: var(--ui-warn); }
+.recorder-menu-layer { position: fixed; inset: 0; z-index: 10; }
+.recorder-menu { position: absolute; width: 240px; padding: 6px; background: var(--ui-panel); border: 1px solid var(--ui-border); border-radius: 4px; }
+.recorder-menu button { justify-content: flex-start; }
+.equipment-actions { flex-wrap: wrap; }
 .empty {
   flex: 1;
   min-height: 0;

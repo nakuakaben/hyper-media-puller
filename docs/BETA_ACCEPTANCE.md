@@ -1,17 +1,8 @@
 # Acceptation de HMP V2 0.1.0-beta.1
 
-Les preuves ci-dessous portent sur les installateurs historiques des lots 9 à 11. Après validation graphique, construire et vérifier de nouveaux candidats avant d’appliquer cette procédure. [Restauration graphique](BETA_VISUAL_RESTORATION.md)
+**NO-GO publication.** Le nom HMP et la restauration graphique ont été validés. Les essais des anciens lots sont des preuves historiques. Les candidats de l’intégration 13–14 et leurs SHA-256 sont remis localement dans `v2/desktop/beta-artifacts/integration-13-14/`. Le rapport `ACCEPTATION.md` de ce dossier associe les preuves à chaque fichier exact et `TESTS_MANUELS.md` regroupe les essais restants.
 
-**NO-GO pour la publication.** Les deux packages sont prêts pour les essais d’acceptation. Les étapes ci-dessous exigent un compte macOS standard distinct et un environnement Windows x64 propre avec session graphique.
-
-## Résultats disponibles
-
-| Package | Preuves acquises | Limites |
-| --- | --- | --- |
-| DMG macOS ARM64 | Le lot 10 a téléchargé le DMG exact dans Safari via HTTP local, vérifié son SHA-256 et constaté la propagation de la quarantaine au bundle. La signature ad hoc a passé `codesign` et Gatekeeper a rejeté la copie. Le lot 9 a ouvert et retiré une copie sans élévation depuis le compte administrateur courant, avec les préférences préservées. | Un seul compte utilisateur local a été trouvé et la création d’un compte distinct demande une authentification administrative. TCP 9993 est déjà occupé sur ce Mac. L’exception, le transfert, le remplacement et la conservation des médias restent à exercer sur le compte standard. |
-| NSIS Windows x64 | Le package exact a été installé, lancé et désinstallé sur le runner x64 sous compte standard avec WebView2 présent. L’installation utilisait un chemin avec espaces et accent. Le SHA-256 et le PE x86-64 embarqué ont été vérifiés. [CI de fabrication](https://github.com/nakuakaben/hyper-media-puller/actions/runs/43286675811) | La VM locale disponible est Windows ARM. Les preuves x64 existantes proviennent d’un runner avec WebView2 présent, sans téléchargement interactif ni observation de SmartScreen. |
-
-Les 32 tests automatisés SAFE-01 à SAFE-12 et les 16 tests FTP passent sur le code de la candidate. Les essais de transfert Windows existants utilisent un binaire de qualification. La qualification matérielle reste limitée au premier offload physique du Studio HD Plus sous macOS, réalisé avant la candidate. [Résultats et empreintes](BETA_FINAL_QUALIFICATION.md)
+Les tests Windows x64 en WebView2 utilisent un HyperDeck et un FTP synthétiques. L’intégration vérifie aussi la conservation de la configuration matérielle, des rapports en mémoire et des médias. Le premier offload physique du Studio HD Plus sous macOS précède la candidate. Le Studio Mini 2017, SMB et les essais matériels Windows restent à qualifier.
 
 ## Essais manuels à regrouper
 

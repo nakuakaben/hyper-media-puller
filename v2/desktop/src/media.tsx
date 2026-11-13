@@ -1,34 +1,56 @@
 import { ArrowUp, ChevronRight, CircleAlert, Clapperboard, FileVideo, Folder, FolderOpen, HardDrive, ListPlus, Plus, RefreshCw, Search, Server, SlidersHorizontal } from 'lucide-react'
 import { useState } from 'react'
-import type { Deck, Media } from './contracts'
+import type { Connection, Deck, Media } from './contracts'
 import { isSystemPath, selectableMedia } from './media-visibility'
 import { formatBytes } from './demo'
 import { deviceImages } from './device-images'
 import { Destination, Options, type Preferences } from './settings'
 import { Badge, Empty, Loading, Panel } from './ui'
 
-export function Recorders({ decks, active, demo, native, onSelect, onConnect }: {
+const connectionLabels: Record<Connection, string> = {
+  checking: 'Vérification en cours', online: 'En ligne', offline: 'Hors ligne', unconfirmed: 'Identité à confirmer',
+}
+
+export function Recorders({ decks, active, demo, native, onSelect, onConnect, canConnect, connections, onActions }: {
   decks: Deck[]; active: string | undefined; demo: boolean; native: boolean
   onSelect: (id: string) => void; onConnect: () => void
+  canConnect: boolean; connections: Record<string, Connection>; onActions: (id: string, x: number, y: number) => void
 }) {
   const [filter, setFilter] = useState('')
   const query = filter.trim().toLocaleLowerCase()
   const visible = decks.filter(({ recorder, model }) => [recorder.name, model, recorder.host].some(value => value.toLocaleLowerCase().includes(query)))
   return <Panel title="HyperDeck" icon={Server} meta={String(decks.length)}
-    actions={!demo && <button className="icon-button" disabled={!native} aria-label="Identifier un HyperDeck" title="Identifier un HyperDeck" onClick={onConnect}><Plus size={15} /></button>}>
+    actions={!demo && <button className="icon-button" disabled={!native || !canConnect} aria-label="Identifier un HyperDeck" title="Identifier un HyperDeck" onClick={onConnect}><Plus size={15} /></button>}>
     <div className="toolbar"><label className="input-icon"><Search size={14} aria-hidden="true" /><input aria-label="Filtrer les HyperDeck"
       value={filter} onChange={event => setFilter(event.target.value)} placeholder="Rechercher" /></label></div>
     <div className="recorder-list">
       {visible.map(({ recorder, model }) => {
         const image = deviceImages[model.toLowerCase()]
         const offline = demo && recorder.id === 'legacy'
-        return <button key={recorder.id} className="recorder" aria-pressed={active === recorder.id} onClick={() => onSelect(recorder.id)}>
+        const connection = connections[recorder.id] ?? 'checking'
+        const status = demo ? offline ? 'Hors ligne' : 'Appareil de démonstration' : connectionLabels[connection]
+        const dot = demo ? offline ? 'offline' : 'available' : connection === 'online' ? 'available' : connection
+        return <button key={recorder.id} className="recorder" aria-pressed={active === recorder.id} onClick={() => onSelect(recorder.id)}
+          aria-keyshortcuts={!demo ? 'Shift+F10' : undefined}
+          onContextMenu={event => {
+            if (demo) return
+            event.preventDefault()
+            event.currentTarget.focus()
+            onActions(recorder.id, event.clientX, event.clientY)
+          }}
+          onKeyDown={event => {
+            if (demo || !(event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10'))) return
+            event.preventDefault()
+            const bounds = event.currentTarget.getBoundingClientRect()
+            onActions(recorder.id, bounds.left + 8, bounds.bottom)
+          }}>
           <span className="device-icon">{image ? <img src={image} alt="" /> :
             <span title="Visuel du modèle indisponible dans ce build"><Server size={23} aria-hidden="true" /></span>}</span>
           <span className="device-label"><strong className="truncate" title={recorder.name}>{recorder.name}</strong>
             {model !== recorder.name && <span className="truncate" title={model}>{model}</span>}
-            <span className="mono truncate">{offline ? "Hors ligne" : recorder.host}</span></span>
-          <span className={'device-dot ' + (offline ? 'offline' : 'available')} aria-label={offline ? 'Hors ligne' : demo ? 'Appareil de démonstration' : 'Identifié'} />
+            <span className="mono truncate">{offline ? 'Hors ligne' : recorder.host}</span>
+            {!demo && <span>{status}</span>}</span>
+          <span className={'device-dot ' + dot} title={status} aria-hidden={!demo} aria-label={demo ? status : undefined} />
         </button>
       })}
       {!visible.length && <Empty icon={Server} title={decks.length ? 'Aucun résultat' : 'Aucun HyperDeck'} />}

@@ -4,6 +4,12 @@ on:
     branches: [main, feat/rust-v2-core]
   # The six required checks must also run for documentation-only PRs.
   pull_request:
+  workflow_dispatch:
+    inputs:
+      recipient:
+        description: 'Optional age public key for encrypted Windows test installers'
+        type: string
+        required: false
 permissions:
   contents: read
 jobs:
@@ -73,7 +79,7 @@ jobs:
       matrix:
         os: [macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 35
+    timeout-minutes: 40
     defaults:
       run:
         working-directory: v2/desktop
@@ -125,20 +131,24 @@ jobs:
         if: runner.os == 'Windows'
         run: npm run tauri -- build --debug --no-bundle -- --locked
       - name: Build and exercise the Windows beta installer
-        if: runner.os == 'Windows' && contains(github.event.pull_request.body, 'HMP-BETA-RECIPIENT=')
+        if: runner.os == 'Windows' && (inputs.recipient != '' || (github.event.pull_request.user.login == github.repository_owner && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.body, 'HMP-BETA-RECIPIENT=')))
         shell: pwsh
         env:
+          HMP_RECIPIENT: ${{ inputs.recipient }}
           HMP_PR_BODY: ${{ github.event.pull_request.body }}
         run: |
-          $recipient = [regex]::Match($env:HMP_PR_BODY, '(?m)^HMP-BETA-RECIPIENT=(age1[0-9a-z]{58})\r?$')
-          if (-not $recipient.Success) { throw 'Missing a valid encrypted-artifact recipient.' }
-          ./qualification/windows-package.ps1 -Recipient $recipient.Groups[1].Value
+          $recipient = $env:HMP_RECIPIENT
+          if (-not $recipient) {
+            $recipient = [regex]::Match($env:HMP_PR_BODY, '(?m)^HMP-BETA-RECIPIENT=(age1[0-9a-z]{58})\r?$').Groups[1].Value
+          }
+          ./qualification/windows-package.ps1 -Recipient $recipient -Variant standard
+          ./qualification/windows-package.ps1 -Recipient $recipient -Variant internal
       - name: Upload encrypted Windows beta
-        if: always() && runner.os == 'Windows' && contains(github.event.pull_request.body, 'HMP-BETA-RECIPIENT=')
+        if: always() && runner.os == 'Windows' && (inputs.recipient != '' || (github.event.pull_request.user.login == github.repository_owner && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.body, 'HMP-BETA-RECIPIENT=')))
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: windows-beta-encrypted
-          path: ${{ runner.temp }}/hmp-beta-windows/windows-package.zip.age
+          path: ${{ runner.temp }}/hmp-beta-windows-*/windows-package.zip.age
           if-no-files-found: warn
           retention-days: 7
       - name: Upload Windows qualification evidence

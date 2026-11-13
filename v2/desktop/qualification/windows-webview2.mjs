@@ -57,6 +57,7 @@ function embeddedWebView(root) {
 const root = await mkdtemp(join(tmpdir(), 'hmp-win-qa-'))
 const destination = join(root, 'Régie extérieure ' + 'session '.repeat(9).trimEnd())
 await mkdir(destination)
+await mkdir(join(root, 'profile'))
 const report = { schema_version: 1, architecture: process.arch, scenarios: [], screenshots: [] }
 const note = (name, detail = true) => {
   report.scenarios.push({ name, detail })
@@ -68,7 +69,7 @@ let completed = false
 try {
   fixture = await startFixture()
   assert.ok(process.env.HMP_WEBVIEW2_RUNTIME, 'WebView2 Runtime discovery did not run')
-  app = spawn(executable, [], {
+  const launch = () => spawn(executable, [], {
     env: {
       ...process.env,
       WEBVIEW2_USER_DATA_FOLDER: join(root, 'webview'),
@@ -78,6 +79,7 @@ try {
     },
     windowsHide: false,
   })
+  app = launch()
   app.stdout.on('data', chunk => stdout.push(String(chunk)))
   app.stderr.on('data', chunk => stdout.push(String(chunk)))
   app.on('error', error => stdout.push(String(error)))
@@ -92,7 +94,7 @@ try {
   const bodyContains = text => `document.body.innerText.includes(${JSON.stringify(text)})`
   const button = text => `[...document.querySelectorAll('button')].find(b => b.textContent.trim() === ${JSON.stringify(text)} && !b.disabled)`
   const element = selector => `document.querySelector(${JSON.stringify(selector)})`
-  async function click(expression) {
+  async function click(expression, button = 'left') {
     const point = await waitFor('actionable control: ' + expression, () => evaluate(`(() => {
       const node = ${expression};
       if (!node || node.disabled || !node.getClientRects().length) return null;
@@ -102,8 +104,8 @@ try {
       const y = r.y + r.height / 2;
       return node.contains(document.elementFromPoint(x, y)) ? { x, y } : null;
     })()`))
-    await send('Input.dispatchMouseEvent', { ...point, type: 'mousePressed', button: 'left', clickCount: 1 })
-    await send('Input.dispatchMouseEvent', { ...point, type: 'mouseReleased', button: 'left', clickCount: 1 })
+    await send('Input.dispatchMouseEvent', { ...point, type: 'mousePressed', button, clickCount: 1 })
+    await send('Input.dispatchMouseEvent', { ...point, type: 'mouseReleased', button, clickCount: 1 })
   }
   async function press(key, virtualKey) {
     for (const type of ['rawKeyDown', 'keyUp']) {
@@ -174,6 +176,20 @@ try {
   await click(button('sd2'))
   await dom(bodyContains('clip principal.mov'))
   note('HyperDeck identification and FTP navigation through /sd2')
+
+  const recorder = element('.recorder-list .recorder')
+  const recorderHas = text => `${recorder}?.innerText.includes(${JSON.stringify(text)})`
+  await click(recorder, 'right')
+  await dom(bodyContains('Vérifier la connexion'))
+  await shot('05-menu-enregistreur')
+  await click(button('Renommer'))
+  await click(element('dialog input'))
+  await evaluate("document.querySelector('dialog input').select()")
+  await send('Input.insertText', { text: 'Régie A' })
+  await click(button('Enregistrer le nom'))
+  await dom(recorderHas('Régie A'))
+  await shot('06-enregistreur-renomme')
+  note('Native context menu renames the saved recorder')
 
   const keyboard = element('.system-toggle input')
   await evaluate(`${keyboard}.focus()`)
@@ -249,6 +265,8 @@ try {
   await navigate('Paramètres')
   await dom(bodyContains('Préférences de transfert'))
   await shot('04-parametres')
+  await evaluate("Array.from(document.querySelectorAll('h2')).find(h => h.textContent === 'Configuration matérielle').scrollIntoView()")
+  await shot('07-configuration-materielle')
 
   async function addAndStart(name) {
     await navigate('Médias')
@@ -258,6 +276,14 @@ try {
     await click(button('Démarrer / reprendre le lot'))
   }
   const row = name => `[...document.querySelectorAll('.queue-table tbody tr')].find(row => row.innerText.includes(${JSON.stringify(name)}))`
+  const original = Buffer.alloc(files[first].length, 0x7a)
+  await writeFile(join(destination, first), original)
+  await addAndStart(first)
+  await waitFor('collision copy is published under a new name', async () =>
+    (await readdir(destination)).includes('clip principal_copy_1.mov'))
+  assert.deepEqual(await readFile(join(destination, first)), original)
+  assert.deepEqual(await readFile(join(destination, 'clip principal_copy_1.mov')), files[first])
+  note('Same-size collision preserves the original and publishes a verified copy')
   await addAndStart('annulation.mov')
   await waitFor('FTP data sent for annulation.mov', () => fixture.activeSlowCopies.has('annulation.mov'))
   await dom(`${row('annulation.mov')}?.innerText.includes('Copie')`)
@@ -303,6 +329,39 @@ try {
   assert.equal(app.exitCode, 0)
   assert.ok(!(await readdir(destination)).includes('fermeture.mov'))
   note('Application exited without publishing the cancelled file')
+
+  fixture.setOnline(false)
+  app = launch()
+  await dom(recorderHas('Régie A'))
+  await dom(recorderHas('Hors ligne'))
+  assert.equal(await evaluate("document.querySelectorAll('.recorder-list .recorder').length"), 1)
+  await shot('08-enregistreur-hors-ligne')
+  fixture.setOnline(true)
+  // Allow one full production polling interval plus the network probe.
+  await waitFor('automatic reconnection after the 30-second probe interval', () => evaluate(recorderHas('En ligne')), 42000)
+  await click(recorder, 'right')
+  await click(button('Vérifier la connexion'))
+  await dom(recorderHas('En ligne'))
+  await click(element(connect))
+  await click(element('dialog input'))
+  await send('Input.insertText', { text: fixture.host })
+  await click(button('Identifier'))
+  await dom("!document.querySelector('dialog[open]')")
+  await dom(recorderHas('Régie A'))
+  assert.equal(await evaluate("document.querySelectorAll('.recorder-list .recorder').length"), 1)
+  assert.deepEqual(await readFile(join(destination, first)), original)
+  note('Restart restores the custom name, automatic reconnection updates status and rediscovery keeps one entry')
+  await click(recorder, 'right')
+  await click(button('Supprimer de la configuration'))
+  await dom(bodyContains('Les médias et les lots existants sont conservés'))
+  await shot('09-confirmer-retrait')
+  await click(button('Supprimer l’enregistreur'))
+  await dom(bodyContains('Aucun HyperDeck'))
+  assert.deepEqual(await readFile(join(destination, first)), original)
+  note('Confirmed removal preserves existing media')
+  await native('close')
+  await waitFor('restarted application exits', () => app.exitCode !== null)
+  assert.equal(app.exitCode, 0)
   completed = true
 } catch (error) {
   console.error('App exit code:', app?.exitCode, 'PID:', app?.pid)

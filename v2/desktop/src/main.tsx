@@ -3,7 +3,7 @@ import { Activity, AppWindow, ChevronRight, Clapperboard, FileCheck2, Folder, In
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
 import '@fontsource-variable/inter'
-import { bridge, errorMessage, offload, type Deck, type Job, type PreviewInfo, type TransferAction, type TransferOptions as OptionsDto } from './contracts'
+import { bridge, errorMessage, offload, type Deck, type Identified, type SavedDeck, type Job, type PreviewInfo, type TransferAction, type TransferOptions as OptionsDto } from './contracts'
 import { advanceDemo, demoDecks, demoJob, initialJobs, listDemo, formatBytes } from './demo'
 import { isSystemPath, selectableMedia, visibleParent } from './media-visibility'
 import { MediaBrowser, Recorders, TransferOptions, type Listing } from './media'
@@ -11,6 +11,8 @@ import { defaultPreferences, Options, Settings, type Preferences } from './setti
 import { CompactQueue, Reports, Transfers } from './transfers'
 import { RealReports } from './reports'
 import { useOffload } from './offload'
+import { useEquipment } from './equipment'
+import { EquipmentEdit, EquipmentSettings, RecorderMenu } from './equipment-controls'
 import { Badge, Empty, Loading, Panel, ProgressCell, Splitter, defaultLayout, layoutStyle, type Layout } from './ui'
 import './tokens.css'
 import './style.css'
@@ -50,7 +52,7 @@ function Modal({ title, onClose, children, wide = false }: { title: string; onCl
   </dialog>
 }
 
-function Connect({ onConnect }: { onConnect: (deck: Deck) => void }) {
+function Connect({ onConnect }: { onConnect: (result: Identified) => void }) {
   const [host, setHost] = useState('')
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState('')
@@ -105,6 +107,7 @@ function optionsDto(values: Preferences): OptionsDto {
 
 function App() {
   const real = useOffload()
+  const hardware = useEquipment()
   const hydrated = useRef(false)
   const [saved, setSaved] = useState(false)
   const [preferredBatch, setPreferredBatch] = useState<string>()
@@ -112,7 +115,8 @@ function App() {
   const [demo, setDemo] = useState(false)
   const [info, setInfo] = useState<PreviewInfo>()
   const [bridgeError, setBridgeError] = useState('')
-  const [liveDecks, setLiveDecks] = useState<Deck[]>([])
+  const [menu, setMenu] = useState<{ deck: SavedDeck; x: number; y: number }>()
+  const [hardwareDialog, setHardwareDialog] = useState<{ action: 'rename' | 'remove' | 'verify' | 'reset'; deck?: SavedDeck }>()
   const [liveId, setLiveId] = useState<string>()
   const [demoId, setDemoId] = useState('mini')
   const [path, setPath] = useState('/')
@@ -134,11 +138,16 @@ function App() {
   const reservedHeight = 44 + 28 + 56 + 12 + 5 + 164
   const queueMax = Math.min(340, Math.max(128, viewport.height - reservedHeight))
   const activeLayout = { ...layout, left: Math.min(layout.left, leftMax), queue: Math.min(layout.queue, queueMax) }
-  const decks = demo ? visibleDemoDecks : liveDecks
+  const decks = demo ? visibleDemoDecks : hardware.decks
   const id = demo ? demoId : liveId
   const activeDeck = decks.find(deck => deck.recorder.id === id)
-  const listingKey = JSON.stringify([demo, id, path, refresh])
-  const rawListing: Listing = !activeDeck ? idle : result?.key === listingKey ? result.listing : { status: 'loading', items: [] }
+  const connection = liveId ? hardware.status[liveId] : undefined
+  const listingKey = JSON.stringify([demo, id, path, refresh, connection])
+  let rawListing: Listing = !activeDeck ? idle : result?.key === listingKey ? result.listing : { status: 'loading', items: [] }
+  if (activeDeck && !demo && connection !== 'online' && connection !== 'checking') {
+    rawListing = { status: 'offline', items: [], message: connection === 'unconfirmed'
+      ? 'Identité non confirmée. Vérifiez la connexion dans le menu de l’enregistreur.' : 'Vérifiez la connexion dans le menu de l’enregistreur.' }
+  }
   const hiddenCount = showSystem ? 0 : rawListing.items.filter(item => isSystemPath(item.remote_path)).length
   const listing: Listing = hiddenCount
     ? { ...rawListing, items: rawListing.items.filter(item => !isSystemPath(item.remote_path)) }
@@ -195,9 +204,9 @@ function App() {
       }, 220)
       return () => { window.clearTimeout(timer); current = false }
     }
-    bridge.list(activeDeck.recorder.id, path).then(receive).catch(fail)
+    if (connection === 'online') bridge.list(activeDeck.recorder.id, path).then(receive).catch(fail)
     return () => { current = false }
-  }, [activeDeck, demo, id, path, listingKey])
+  }, [activeDeck, demo, id, path, listingKey, connection])
   useEffect(() => {
     if (!demo || !playing) return
     const interval = window.setInterval(() => setJobs(previous => advanceDemo(previous, demoPreferences.concurrency)), 900)
@@ -281,12 +290,18 @@ function App() {
         <div className="row"><Badge label={demo ? 'Mode démonstration' : bridge.native ? 'Mode réel' : 'Aperçu navigateur'} tone={demo ? 'warn' : 'neutral'} />
           <button disabled={!demo && (realRunning || real.busy)} onClick={toggleDemo}>{demo ? 'Quitter la démonstration' : 'Ouvrir la démonstration'}</button></div>
       </header>
+      {!demo && hardware.error && <div className="callout error bridge-error" role="alert">{hardware.error}</div>}
       {bridgeError && <div className="callout error bridge-error" role="alert">{bridgeError}</div>}
       {!demo && real.connectionError && <div className="callout error bridge-error" role="alert">File en cours de reconnexion · {real.connectionError}</div>}
       {!demo && real.feedback && <div className="callout error bridge-error" role="alert">{real.feedback}</div>}
       {page === 'media' && <div className="media-layout" style={layoutStyle(activeLayout)}>
         <div className={'upper' + (compact ? ' compact' : '')}>
-          <Recorders decks={decks} active={id} demo={demo} native={bridge.native} onSelect={chooseDeck} onConnect={() => setOverlay('connect')} />
+          <Recorders decks={decks} active={id} demo={demo} native={bridge.native} onSelect={chooseDeck} onConnect={() => setOverlay('connect')}
+            canConnect={hardware.ready && !hardware.busy} connections={hardware.status}
+            onActions={(id, x, y) => {
+              const deck = hardware.decks.find(item => item.recorder.id === id)
+              if (deck) setMenu({ deck, x, y })
+            }} />
           <Splitter axis="x" label="Largeur des appareils" min={210} max={leftMax} value={activeLayout.left} onChange={left => setLayout({ ...layout, left })} />
           <MediaBrowser deck={activeDeck} path={path} listing={listing} selected={selected} setSelected={setSelected} navigate={navigate}
             refresh={() => navigate(path)} showSystem={showSystem} hiddenCount={hiddenCount} onShowSystem={changeSystemVisibility} compact={compact} onOptions={() => setOverlay('options')} />
@@ -304,7 +319,12 @@ function App() {
       {page === 'reports' && (demo ? <Reports demo jobs={visibleJobs} /> : <RealReports queue={real.queue} />)}
       {page === 'settings' && <Settings demo={demo} native={bridge.native} info={info} values={values} onChange={setValues}
         onConnect={() => setOverlay('connect')} onReset={() => setLayout(defaultLayout)} onComponents={() => setOverlay('components')}
-        onChoose={real.choose} available={available} busy={real.busy} onSave={saveDefaults} saved={saved} />}
+        onChoose={real.choose} available={available} busy={real.busy} onSave={saveDefaults} saved={saved}
+        canConnect={hardware.ready && !hardware.busy}
+        equipmentPanel={<EquipmentSettings enabled={!demo && hardware.ready && !hardware.busy}
+          hasDecks={hardware.decks.length > 0} notice={demo ? '' : hardware.notice}
+          onImport={() => void hardware.exchange(true)} onExport={() => void hardware.exchange(false)}
+          onReset={() => setHardwareDialog({ action: 'reset' })} />} />}
     </main>
     <nav className="bottom-nav" aria-label="Espaces HMP">
       {pages.map(({ id, title, icon: Icon }) => <button key={id} aria-current={id === page ? 'page' : undefined} onClick={() => setPage(id)}>
@@ -316,12 +336,45 @@ function App() {
       <span><Info size={13} />V2 bêta <span className="mono">{info?.version ?? version}</span></span>
     </footer>
     {overlay === 'connect' && <Modal title="Identifier un HyperDeck" onClose={() => setOverlay(undefined)}>
-      <Connect onConnect={deck => {
-        setLiveDecks(previous => [...previous.filter(item => item.recorder.id !== deck.recorder.id), deck])
-        chooseDeck(deck.recorder.id)
+      <Connect onConnect={result => {
+        hardware.identified(result)
+        chooseDeck(result.deck.recorder.id)
         setOverlay(undefined)
         setPage('media')
       }} />
+    </Modal>}
+    {menu && <RecorderMenu x={menu.x} y={menu.y} name={menu.deck.recorder.name}
+      checking={hardware.status[menu.deck.recorder.id] === 'checking'}
+      onClose={() => setMenu(undefined)}
+      onRename={() => { setHardwareDialog({ action: 'rename', deck: menu.deck }); setMenu(undefined) }}
+      onRemove={() => { setHardwareDialog({ action: 'remove', deck: menu.deck }); setMenu(undefined) }}
+      onVerify={() => {
+        setMenu(undefined)
+        if (menu.deck.unique_id === null) setHardwareDialog({ action: 'verify', deck: menu.deck })
+        else void hardware.verify(menu.deck)
+      }} />}
+    {hardwareDialog?.action === 'verify' && hardwareDialog.deck && <Modal title="Confirmer l’appareil" onClose={() => setHardwareDialog(undefined)}>
+      <div className="panel-body stack">
+        <p>Cet enregistreur ne fournit pas d’identifiant matériel. Confirmez que l’appareil à l’adresse {hardwareDialog.deck.recorder.host} est bien celui de cette prestation.</p>
+        <button className="primary" onClick={() => {
+          const deck = hardwareDialog.deck
+          setHardwareDialog(undefined)
+          if (deck) void hardware.verify(deck, true)
+        }}>Confirmer et vérifier</button>
+      </div>
+    </Modal>}
+    {hardwareDialog && hardwareDialog.action !== 'verify' && <Modal
+      title={hardwareDialog.action === 'rename' ? 'Renommer l’enregistreur' : hardwareDialog.action === 'remove' ? 'Supprimer de la configuration' : 'Réinitialiser la prestation'}
+      onClose={() => setHardwareDialog(undefined)}>
+      <EquipmentEdit action={hardwareDialog.action} deck={hardwareDialog.deck} onCancel={() => setHardwareDialog(undefined)}
+        onSave={async edit => {
+          await hardware.edit(edit)
+          if (edit.action === 'reset' || (edit.action === 'remove' && edit.id === liveId)) {
+            setLiveId(undefined)
+            navigate('/')
+          }
+          setHardwareDialog(undefined)
+        }} />
     </Modal>}
     {overlay === 'options' && <Modal title="Options du lot" onClose={() => setOverlay(undefined)}>{!demo && real.feedback && <div className="callout error" role="alert">{real.feedback}</div>}{transferOptions}</Modal>}
     {overlay === 'components' && <Modal title="Planche des composants" wide onClose={() => setOverlay(undefined)}><ComponentBoard /></Modal>}

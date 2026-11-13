@@ -14,7 +14,7 @@ Depuis `v2/desktop` après `npm ci` :
 npm run tauri -- build --config src-tauri/tauri.internal.conf.json -- --locked
 ```
 
-Les deux configurations affichent **HMP** dans la fenêtre et les menus système. Leurs identifiants Tauri et profils de données restent distincts et inchangés. Conserver les deux bundles dans des dossiers séparés, car ils portent le même nom `HMP.app`. Les quatre modèles sont visibles dans la démonstration interne. La liste du mode réel continue de présenter les appareils identifiés. Pour fabriquer un candidat destiné à la distribution, utiliser la configuration Tauri standard et vérifier le contenu de son frontend et de ses packages.
+Les deux configurations affichent **HMP** dans la fenêtre et les menus système. Leurs identifiants Tauri et profils de données restent distincts et inchangés. Conserver les deux bundles dans des dossiers séparés, car ils portent le même nom `HMP.app`. Sous Windows, utiliser `src-tauri/tauri.internal-windows.conf.json` pour fabriquer le NSIS interne. Le titre de la fenêtre et le fil d’Ariane restent HMP. Le nom d’installation et les raccourcis sont **HMP (interne)** pour séparer les clés NSIS, le dossier d’installation et les raccourcis de **HMP**. Les identifiants et chemins de données restent inchangés. Les quatre modèles sont visibles dans la démonstration interne. La liste du mode réel continue de présenter les appareils identifiés. Pour fabriquer un candidat destiné à la distribution, utiliser la configuration Tauri standard et vérifier le contenu de son frontend et de ses packages.
 
 ## Comparaison visuelle
 

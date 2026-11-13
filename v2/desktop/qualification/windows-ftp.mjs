@@ -50,6 +50,7 @@ export async function startFixture() {
   const errors = []
   const activeSlowCopies = new Set()
   let dropCount = 0
+  let online = true
 
   function server(handler) {
     const instance = createServer(socket => {
@@ -71,6 +72,7 @@ export async function startFixture() {
   }
 
   const control = server(socket => {
+    if (!online) { socket.destroy(); return }
     socket.write('500 connection:\r\nprotocol version: 1.8\r\n\r\n')
     lines(socket, line => {
       commands.push(line)
@@ -151,7 +153,7 @@ export async function startFixture() {
   try {
     await listen(control, host, 9993)
     await listen(ftp, host, 21)
-    return { host, close, commands, errors, activeSlowCopies }
+    return { host, close, commands, errors, activeSlowCopies, setOnline: value => { online = value } }
   } catch (error) {
     close()
     throw error

@@ -1,6 +1,10 @@
 const COMMANDS: &[&str] = &[
     "preview_info",
     "identify_deck",
+    "saved_recorders",
+    "verify_recorder",
+    "edit_recorders",
+    "equipment_json",
     "list_media",
     "transfer_settings",
     "choose_destination",

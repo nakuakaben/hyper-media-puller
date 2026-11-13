@@ -7,6 +7,10 @@
   "permissions": [
     "allow-preview-info",
     "allow-identify-deck",
+    "allow-saved-recorders",
+    "allow-verify-recorder",
+    "allow-edit-recorders",
+    "allow-equipment-json",
     "allow-list-media",
     "allow-transfer-settings",
     "allow-choose-destination",

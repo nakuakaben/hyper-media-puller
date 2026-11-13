@@ -1,6 +1,8 @@
 param(
     [Parameter(Mandatory)][string]$Installer,
-    [Parameter(Mandatory)][string]$Version
+    [Parameter(Mandatory)][string]$Version,
+    [Parameter(Mandatory)][string]$Product,
+    [Parameter(Mandatory)][string]$Identifier
 )
 
 $ErrorActionPreference = 'Stop'
@@ -25,14 +27,14 @@ try {
     $desktop = Join-Path $profile 'Desktop'
     $programs = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs'
     New-Item -ItemType Directory -Force -Path $desktop, $programs, $env:TEMP | Out-Null
-    $path = Join-Path $local 'HMP bêta avec espaces'
+    $path = Join-Path $local "$Product bêta avec espaces"
     $report.webView2 = 'present'
     $report.installerSignature = (Get-AuthenticodeSignature -FilePath $Installer).Status.ToString()
 
     $setup = Start-Process $Installer -ArgumentList "/S /D=$path" -Wait -PassThru
     if ($setup.ExitCode -ne 0) { throw "Per-user install failed (exit $($setup.ExitCode))." }
     $entries = @(Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' |
-        Where-Object DisplayName -eq 'HMP')
+        Where-Object DisplayName -eq $Product)
     if ($entries.Count -ne 1) { throw 'Expected one HMP uninstall entry in HKCU.' }
     $entry = $entries[0]
     if ($entry.DisplayVersion -ne $Version) { throw "Unexpected installed version: $($entry.DisplayVersion)" }
@@ -50,8 +52,8 @@ try {
 
     $shell = New-Object -ComObject WScript.Shell
     $shortcuts = @(
-        (Join-Path $programs 'HMP.lnk')
-        (Join-Path $desktop 'HMP.lnk')
+        (Join-Path $programs "$Product.lnk")
+        (Join-Path $desktop "$Product.lnk")
     )
     foreach ($shortcut in $shortcuts) {
         if (-not (Test-Path -LiteralPath $shortcut -PathType Leaf) -or $shell.CreateShortcut($shortcut).TargetPath -ne $exe) {
@@ -60,25 +62,44 @@ try {
     }
     $report.shortcuts = @('Start menu', 'Desktop')
 
-    $app = Start-Process $exe -WorkingDirectory $path -PassThru
-    $deadline = (Get-Date).AddSeconds(30)
-    do {
-        Start-Sleep -Milliseconds 250
-        $app.Refresh()
-    } until ($app.HasExited -or $app.MainWindowHandle -ne 0 -or (Get-Date) -ge $deadline)
-    if ($app.HasExited -or $app.MainWindowHandle -eq 0) { throw 'The installed application did not show a window.' }
-    $report.windowTitle = $app.MainWindowTitle
-    if ($report.windowTitle -cne 'HMP') { throw "Unexpected native window title: $($report.windowTitle)" }
-    $report.launched = $true
-    if (-not $app.CloseMainWindow() -or -not $app.WaitForExit(15000) -or $app.ExitCode -ne 0) {
-        throw 'The installed application did not close normally.'
+    $data = Join-Path $env:APPDATA $Identifier
+    New-Item -ItemType Directory -Force -Path $data | Out-Null
+    $equipment = Join-Path $data 'equipment-v1.json'
+    '{"schema_version":1,"recorders":[]}' | Set-Content -NoNewline -Encoding ascii $equipment
+    $hash = (Get-FileHash $equipment).Hash
+
+    foreach ($pass in 1, 2) {
+        if ($pass -eq 2) {
+            $reinstall = Start-Process $Installer -ArgumentList "/S /D=$path" -Wait -PassThru
+            if ($reinstall.ExitCode -ne 0) { throw 'Same-version reinstall failed.' }
+        }
+        $app = Start-Process $exe -WorkingDirectory $path -PassThru
+        $deadline = (Get-Date).AddSeconds(30)
+        do {
+            Start-Sleep -Milliseconds 250
+            $app.Refresh()
+        } until ($app.HasExited -or $app.MainWindowHandle -ne 0 -or (Get-Date) -ge $deadline)
+        if ($app.HasExited -or $app.MainWindowHandle -eq 0) { throw 'The installed application did not show a window.' }
+        $report.windowTitle = $app.MainWindowTitle
+        if ($report.windowTitle -cne 'HMP') { throw "Unexpected native window title: $($report.windowTitle)" }
+        $report.launched = $true
+        if (-not $app.CloseMainWindow() -or -not $app.WaitForExit(15000) -or $app.ExitCode -ne 0) {
+            throw 'The installed application did not close normally.'
+        }
+        if (-not (Test-Path (Join-Path $data 'equipment-v1.lock')) -or (Get-FileHash $equipment).Hash -ne $hash) {
+            throw 'The application did not retain equipment in the expected profile.'
+        }
     }
+    $report.reinstalled = $true
 
     $remove = Start-Process $uninstaller -ArgumentList '/S' -Wait -PassThru
     if ($remove.ExitCode -ne 0 -or (Test-Path -LiteralPath $exe)) { throw 'Uninstall did not remove the application.' }
     foreach ($shortcut in $shortcuts) {
         if (Test-Path -LiteralPath $shortcut) { throw "Uninstall left a shortcut: $shortcut" }
     }
+    if ((Get-FileHash $equipment).Hash -ne $hash) { throw 'Uninstall did not retain the equipment configuration.' }
+    $report.equipmentRetained = $true
+    $report.identifier = $Identifier
     $report.uninstalled = $true
 } catch {
     $report.error = $_.Exception.Message
