@@ -309,6 +309,8 @@ try {
   assert.equal(await evaluate("document.querySelectorAll('.recorder-list .recorder').length"), 1)
   await shot('08-enregistreur-hors-ligne')
   fixture.setOnline(true)
+  // Allow one full production polling interval plus the network probe.
+  await waitFor('automatic reconnection after the 30-second probe interval', () => evaluate(recorderHas('En ligne')), 42000)
   await click(recorder, 'right')
   await click(button('Vérifier la connexion'))
   await dom(recorderHas('En ligne'))
@@ -320,7 +322,7 @@ try {
   await dom(recorderHas('Régie A'))
   assert.equal(await evaluate("document.querySelectorAll('.recorder-list .recorder').length"), 1)
   assert.deepEqual(await readFile(join(destination, first)), files[first])
-  note('Restart restores the custom name, offline remains listed and rediscovery keeps one entry')
+  note('Restart restores the custom name, automatic reconnection updates status and rediscovery keeps one entry')
   await click(recorder, 'right')
   await click(button('Supprimer de la configuration'))
   await dom(bodyContains('Les médias et les lots existants sont conservés'))
