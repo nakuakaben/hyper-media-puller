@@ -22,6 +22,7 @@ Décision actuelle **NO-GO publication**. [Procédure et résultats d’acceptat
 ## Installation et vérification
 
 - [x] **IMPORTANT** Validation du nom HMP et des captures de restauration par le propriétaire. [Restauration graphique](BETA_VISUAL_RESTORATION.md)
+- [x] **IMPORTANT** Validation physique par le propriétaire du démarrage, du renommage, de la persistance, de la déconnexion, de la reconnexion automatique et de la suppression sur le build interne du correctif. [Périmètre des essais](BETA_ACCEPTANCE.md#correctif-des-enregistreurs--validation-physique-du-13-novembre-2026)
 
 - [x] **IMPORTANT** Construire et contrôler le `.app` ARM64 et le DMG. Vérifier la signature ad hoc et le minimum macOS 11.0.
 - [ ] **BLOCKER** Télécharger le DMG intégré via Safari et relever la quarantaine et Gatekeeper. L’essai du lot 10 reste historique.
