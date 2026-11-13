@@ -21,7 +21,10 @@ try {
     $env:APPDATA = Join-Path $profile 'AppData\Roaming'
     $env:TEMP = Join-Path $local 'Temp'
     $env:TMP = $env:TEMP
-    New-Item -ItemType Directory -Force -Path $env:APPDATA, $env:TEMP | Out-Null
+    # This disposable account has not logged into Explorer.
+    $desktop = Join-Path $profile 'Desktop'
+    $programs = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs'
+    New-Item -ItemType Directory -Force -Path $desktop, $programs, $env:TEMP | Out-Null
     $path = Join-Path $local 'HMP bêta avec espaces'
     $report.webView2 = 'present'
     $report.installerSignature = (Get-AuthenticodeSignature -FilePath $Installer).Status.ToString()
@@ -47,8 +50,8 @@ try {
 
     $shell = New-Object -ComObject WScript.Shell
     $shortcuts = @(
-        (Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\HMP.lnk')
-        (Join-Path $profile 'Desktop\HMP.lnk')
+        (Join-Path $programs 'HMP.lnk')
+        (Join-Path $desktop 'HMP.lnk')
     )
     foreach ($shortcut in $shortcuts) {
         if (-not (Test-Path -LiteralPath $shortcut -PathType Leaf) -or $shell.CreateShortcut($shortcut).TargetPath -ne $exe) {
