@@ -1,4 +1,7 @@
-param([Parameter(Mandatory)][string]$Recipient)
+param(
+    [Parameter(Mandatory)][string]$Recipient,
+    [ValidateSet('standard', 'internal')][string]$Variant = 'standard'
+)
 
 $ErrorActionPreference = 'Stop'
 if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_ARCH -ne 'X64') {
@@ -10,17 +13,27 @@ if ($Recipient -cnotmatch '^age1[0-9a-z]{58}$') {
 
 $root = Join-Path $env:PUBLIC ("hmp-beta-" + [guid]::NewGuid().ToString('N'))
 $account = 'hmp-' + [guid]::NewGuid().ToString('N').Substring(0, 12)
-$output = Join-Path $env:RUNNER_TEMP 'hmp-beta-windows'
+$output = Join-Path $env:RUNNER_TEMP "hmp-beta-windows-$Variant"
 $version = (Get-Content ./package.json -Raw | ConvertFrom-Json).version
-$name = "HMP-V2-$version-windows-x64-setup.exe"
+$name = "HMP-V2-$version-windows-x64-$Variant-setup.exe"
+$product = if ($Variant -eq 'internal') { 'HMP (interne)' } else { 'HMP' }
+$identifier = if ($Variant -eq 'internal') { 'fr.tktprod.hyperdeck-media-puller.v2.internal' } else { 'fr.tktprod.hyperdeck-media-puller.v2.preview' }
 $ageZip = Join-Path $root 'age.zip'
 $ageHash = 'f48d8f8f9ebe903ab5027ed067652f2cc1db94bc206976430133b905dcd8e8c7'
 New-Item -ItemType Directory -Path $root, $output | Out-Null
 try {
-    npm run tauri -- build --ci --target x86_64-pc-windows-msvc --bundles nsis -- --locked
+    $target = Join-Path $env:RUNNER_TEMP 'hmp-windows-release'
+    $env:CARGO_TARGET_DIR = $target
+    $config = @()
+    if ($Variant -eq 'internal') {
+        $config = @('--config', 'src-tauri/tauri.internal-windows.conf.json')
+    }
+    $bundleDir = Join-Path $target 'x86_64-pc-windows-msvc/release/bundle/nsis'
+    Get-ChildItem $bundleDir -Filter '*-setup.exe' -ErrorAction SilentlyContinue | Remove-Item
+    npm run tauri -- build --ci --target x86_64-pc-windows-msvc --bundles nsis @config -- --locked
     if ($LASTEXITCODE -ne 0) { throw 'The NSIS build failed.' }
 
-    $packages = @(Get-ChildItem src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis -Filter '*-setup.exe')
+    $packages = @(Get-ChildItem $bundleDir -Filter '*-setup.exe')
     if ($packages.Count -ne 1 -or $packages[0].Name -notlike "*$version*") {
         throw 'Expected exactly one NSIS installer for the requested version.'
     }
@@ -37,7 +50,7 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Cannot grant the test account access to its fixture.' }
 
     $credential = [pscredential]::new("$env:COMPUTERNAME\$account", $password)
-    $arguments = '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "{0}\windows-package-user.ps1" -Installer "{1}" -Version {2}' -f $root, $installer, $version
+    $arguments = '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "{0}\windows-package-user.ps1" -Installer "{1}" -Version {2} -Product "{3}" -Identifier {4}' -f $root, $installer, $version, $product, $identifier
     $parameters = @{
         FilePath = (Get-Command pwsh).Source
         Credential = $credential

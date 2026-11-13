@@ -21,10 +21,12 @@ Décision actuelle **NO-GO publication**. [Procédure et résultats d’acceptat
 
 ## Installation et vérification
 
+- [x] **IMPORTANT** Validation du nom HMP et des captures de restauration par le propriétaire. [Restauration graphique](BETA_VISUAL_RESTORATION.md)
+
 - [x] **IMPORTANT** Construire et contrôler le `.app` ARM64 et le DMG. Vérifier la signature ad hoc et le minimum macOS 11.0.
-- [x] **IMPORTANT** Télécharger le DMG via Safari, vérifier la quarantaine et relever le rejet Gatekeeper.
+- [ ] **BLOCKER** Télécharger le DMG intégré via Safari et relever la quarantaine et Gatekeeper. L’essai du lot 10 reste historique.
 - [ ] **BLOCKER** Exercer l’ouverture autorisée par application sur un compte macOS standard et vérifier le remplacement, le transfert et le retrait.
-- [x] **IMPORTANT** Vérifier le NSIS exact, son SHA-256, son installation, son lancement et son retrait sous compte Windows standard avec WebView2 présent.
+- [ ] **BLOCKER** Exercer le NSIS depuis un téléchargement réel sous compte Windows standard. Consulter le rapport d’intégration pour les essais du runner avec WebView2 présent.
 - [ ] **BLOCKER** Tester sur un Windows x64 propre sans WebView2, contrôler SmartScreen après téléchargement et exercer la mise à jour manuelle.
 - [x] **IMPORTANT** Contrôler l’absence de la feature de qualification dans les exécutables candidats.
 - [ ] **BLOCKER** Vérifier dans les packages exacts la copie sans écrasement involontaire, l’annulation sans fichier final, le SHA-256 flux/local et la conservation des médias après remplacement et retrait.
@@ -33,7 +35,7 @@ Décision actuelle **NO-GO publication**. [Procédure et résultats d’acceptat
 
 ## Contrôle des fichiers à distribuer
 
-- [x] **IMPORTANT** Vérifier les SHA-256 des deux installateurs internes et conserver les relevés de fabrication.
+- [ ] **BLOCKER** Vérifier les SHA-256 des candidats exacts depuis le canal de téléchargement final. Le manifeste de la remise locale couvre les configurations de test.
 - [ ] **BLOCKER** Vérifier le canal de téléchargement final sur les deux plateformes.
 - [ ] **BLOCKER** Obtenir la décision de publication après validation des packages et des limites. Associer la future préversion au commit approuvé. Vérifier ses fichiers téléchargés, leur intégrité et les instructions de signalement.
 - [ ] **LATER** Étudier un MSI et la mise à jour automatique après le premier cycle de bêta.

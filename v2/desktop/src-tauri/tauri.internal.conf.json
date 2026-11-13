@@ -1,0 +1,7 @@
+{
+  "identifier": "fr.tktprod.hyperdeck-media-puller.v2.internal",
+  "build": {
+    "beforeBuildCommand": "npm run build:internal",
+    "frontendDist": "../dist-internal"
+  }
+}

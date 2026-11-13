@@ -22,13 +22,11 @@ use std::{
 use tauri::{Manager, State, Window};
 use tauri_plugin_dialog::DialogExt;
 
-const PROFILE: &str = "fr.tktprod.hyperdeck-media-puller.v2.preview";
-
 #[derive(Serialize)]
 struct PreviewInfo {
     version: &'static str,
     schema_version: u32,
-    profile: &'static str,
+    profile: String,
 }
 
 fn local_ipv4(host: &str) -> Result<Ipv4Addr, TransferError> {
@@ -45,11 +43,11 @@ fn local_ipv4(host: &str) -> Result<Ipv4Addr, TransferError> {
 }
 
 #[tauri::command]
-fn preview_info() -> PreviewInfo {
+fn preview_info(window: Window) -> PreviewInfo {
     PreviewInfo {
         version: env!("CARGO_PKG_VERSION"),
         schema_version: SCHEMA_VERSION,
-        profile: PROFILE,
+        profile: window.app_handle().config().identifier.clone(),
     }
 }
 
@@ -175,6 +173,9 @@ fn main() {
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let profile = app.path().app_data_dir()?;
+            #[cfg(all(windows, feature = "windows-qualification"))]
+            let profile =
+                windows_qualification::fixture_root().map_or(profile, |root| root.join("profile"));
             std::fs::create_dir_all(&profile)?;
             let service = tauri::async_runtime::block_on(async { Offload::new(&profile) })?;
             app.manage(Arc::new(service));

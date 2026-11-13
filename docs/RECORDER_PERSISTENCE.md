@@ -17,3 +17,5 @@ Le fichier versionné `equipment-v1.json` est distinct de `offload-settings-v1.j
 Le format contient des identifiants locaux, noms, modèles, adresses IPv4, identifiants matériels et versions de protocole disponibles. Il ne contient ni identifiants FTP secrets ni chemins de destination. Rust contrôle le schéma, les doublons et la taille du fichier avant toute fusion. Les dialogues natifs sélectionnent les fichiers à importer ou exporter.
 
 Les changements matériels concernent la configuration et les nouvelles sélections. Les lots déjà créés conservent leurs sources et options. La vérification au démarrage ne lance aucune copie. Les rapports de la session restent consultables et les rapports déjà exportés restent sur disque. La file et ses rapports en mémoire suivent leur cycle de vie actuel.
+
+Les configurations standard et interne conservent des profils distincts. Utilisez le JSON si vous souhaitez reprendre une prestation dans l’autre configuration. Le rapport d’acceptation des installateurs intégrés indique les essais effectués sur chaque plateforme.
