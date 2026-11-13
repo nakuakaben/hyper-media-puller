@@ -30,6 +30,14 @@ node v2/desktop/qualification/verify-beta-files.mjs "<dossier-de-remise>"
 
 Le contrôle lit les deux manifestes et vérifie la présence des notices requises. Vérifier séparément que leur contenu et les versions des archives correspondent au build livré, notamment NSIS et son plugin. Compléter `BUILDS.txt` avec SHA, arbre Git, commandes, versions, lien de CI et résultat de signature. Une remise locale ou un fichier dont l’empreinte est correcte ne fournit pas de preuve du canal final. Pour les étapes suivantes, inspecter et ouvrir les mêmes fichiers téléchargés que ceux contrôlés par le vérificateur, en conservant leurs attributs d’origine.
 
+Les fichiers exigés couvrent les avis du projet, les six composants et ressources frontend inventoriés, le texte et l’archive source d’`option-ext`, ainsi que les avis et les sources de NSIS et de son plugin. Le script vérifie aussi la présence du fichier d’inventaire Rust. Comparer manuellement ses lignes et les textes de licence aux dépendances des binaires exacts, puis vérifier les mentions de copyright, les obligations de redistribution et l’accès aux notices depuis le canal final. [Inventaires par composant](BETA_FINAL_QUALIFICATION.md#licences-et-actifs)
+
+Pour rejouer les tests légers du vérificateur :
+
+```sh
+node --test v2/desktop/qualification/tests/verify-beta-files.test.mjs
+```
+
 ### macOS ARM64
 
 Sur un compte standard distinct, télécharger le DMG standard avec Safari depuis le canal privé de test. Adapter le chemin à ce téléchargement. Conserver la sortie des commandes et relever tout rejet.

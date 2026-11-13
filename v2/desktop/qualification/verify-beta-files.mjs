@@ -19,6 +19,14 @@ const notices = [
   'notices/project/Inter-OFL.txt',
   'notices/project/Lucide-LICENSE.txt',
   'notices/project/Resolve-Workflow-Assistant-MIT.txt',
+  'notices/frontend/@fontsource-variable/inter/LICENSE',
+  'notices/frontend/@tauri-apps/api/LICENSE-APACHE-2.0',
+  'notices/frontend/@tauri-apps/api/LICENSE-MIT',
+  'notices/frontend/@tauri-apps/api/LICENSE.spdx',
+  'notices/frontend/lucide-react/LICENSE',
+  'notices/frontend/react/LICENSE',
+  'notices/frontend/react-dom/LICENSE',
+  'notices/frontend/scheduler/LICENSE',
   'notices/rust/option-ext-0.2.0/LICENSE.txt',
   'notices/windows-installer/COPYING',
   'notices/windows-installer/Docs-Modern UI 2-License.txt',
@@ -29,15 +37,25 @@ const notices = [
   'BETA_RELEASE_NOTES.md',
 ]
 
-async function regularFile(root, relative) {
+function pathParts(relative) {
   const parts = relative.split('/')
+  const windowsDevice = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9]) *(?:\.|$)/i
+  if (parts.some(part => !part || /[^\w @.-]|^[. ]|[. ]$/.test(part) || windowsDevice.test(part))) {
+    throw new Error(`Chemin interdit dans le dossier de remise : ${relative}`)
+  }
+  return parts
+}
+
+async function regularFile(root, relative) {
+  const parts = pathParts(relative)
   let path = root
   for (const [index, part] of parts.entries()) {
-    if (!/^[\w .-]+$/.test(part) || part.startsWith('.') || /[. ]$/.test(part)) {
-      throw new Error(`Chemin interdit dans le dossier de remise : ${relative}`)
-    }
     path = join(path, part)
-    const info = await lstat(path)
+    const info = await lstat(path).catch(error => {
+      if (error.code === 'ENOENT') throw new Error(`Fichier manquant : ${relative}`)
+      throw error
+    })
+    if (info.isSymbolicLink()) throw new Error(`Lien symbolique interdit : ${relative}`)
     if (index < parts.length - 1 ? !info.isDirectory() : !info.isFile() || info.size === 0) {
       throw new Error(`Fichier ou dossier invalide : ${relative}`)
     }
@@ -48,10 +66,12 @@ async function regularFile(root, relative) {
 async function verifyManifest(root, manifest, expected) {
   const raw = await readFile(await regularFile(root, manifest), 'utf8')
   const entries = new Map()
-  for (const line of raw.trimEnd().split(/\r?\n/)) {
+  const lines = raw.replace(/\r?\n$/, '').split(/\r?\n/)
+  for (const [index, line] of lines.entries()) {
     const match = /^([a-f0-9]{64}) [ *](.+)$/i.exec(line)
-    if (!match) throw new Error(`Ligne SHA-256 invalide : ${manifest}`)
+    if (!match) throw new Error(`Ligne SHA-256 invalide : ${manifest}, ligne ${index + 1}`)
     const [, hash, name] = match
+    pathParts(name)
     const key = name.toLowerCase()
     if (entries.has(key)) throw new Error(`Entrée en double : ${name}`)
     entries.set(key, { hash: hash.toLowerCase(), name })
@@ -72,6 +92,9 @@ async function verifyManifest(root, manifest, expected) {
 try {
   if (process.argv.length !== 3) throw new Error('Usage : node verify-beta-files.mjs <dossier-de-remise>')
   const root = resolve(process.argv[2])
+  const info = await lstat(root)
+  if (info.isSymbolicLink()) throw new Error('Lien symbolique interdit à la racine de la remise.')
+  if (!info.isDirectory()) throw new Error('Un dossier de remise est requis.')
   await verifyManifest(root, 'SHA256SUMS.txt', packages)
   await verifyManifest(root, 'provenance/SOURCE-SHA256SUMS.txt', sources)
   for (const notice of notices) await regularFile(root, notice)
