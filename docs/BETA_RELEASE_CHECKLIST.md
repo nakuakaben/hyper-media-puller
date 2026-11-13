@@ -10,7 +10,8 @@ Décision actuelle **NO-GO publication**. [Résultats du lot 10](BETA_FINAL_QUAL
 - [x] **IMPORTANT** Recenser les validations physiques et synthétiques des lots 6 et 7, et contrôler les deux fichiers Cargo.lock, les deux projets npm et l’historique Git accessible. [Audit](BETA_READINESS_AUDIT.md)
 - [x] **IMPORTANT** Exclure les visuels historiques de provenance incertaine de la candidate V2. Embarquer les licences HMP, Inter, Lucide et RWA. [Provenance](BETA_RELEASE_NOTES.md)
 - [x] **IMPORTANT** Identifier les dépendances Rust par cible, les modules frontend et le contenu du NSIS.
-- [ ] **BLOCKER** Joindre les textes et avis tiers complets, ainsi que le lien source MPL. Les droits des visuels historiques restent à établir avant leur réintégration.
+- [x] **IMPORTANT** Assembler un dossier de notices de travail avec les textes du graphe Rust et le lien source MPL.
+- [ ] **BLOCKER** Vérifier les avis tiers applicables et joindre le dossier final aux packages. Les droits des visuels historiques restent à établir avant leur réintégration.
 - [x] **IMPORTANT** Aligner les métadonnées Rust, Tauri et npm sur `0.1.0-beta.1`. Conserver l’identifiant et le schéma de préférences Preview.
 - [ ] **BLOCKER** Tester l’installation sur un profil Preview existant et la progression entre deux candidates.
 - [x] **IMPORTANT** Relancer npm audit, OSV et Gitleaks, et documenter les avis et exclusions par cible.
