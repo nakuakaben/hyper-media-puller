@@ -41,4 +41,4 @@ Décision actuelle **NO-GO publication**. [Procédure et résultats d’acceptat
 - [ ] **BLOCKER** Obtenir la décision de publication après validation des packages et des limites. Associer la future préversion au commit approuvé. Vérifier ses fichiers téléchargés, leur intégrité et les instructions de signalement.
 - [ ] **LATER** Étudier un MSI et la mise à jour automatique après le premier cycle de bêta.
 
-[Plan de distribution](BETA_DISTRIBUTION_PLAN.md)
+[Plan de distribution](BETA_DISTRIBUTION_PLAN.md) · [Matrice et commandes de qualification finale](BETA_QUALIFICATION_RUNBOOK.md)

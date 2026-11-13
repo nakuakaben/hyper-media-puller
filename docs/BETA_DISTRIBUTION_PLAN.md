@@ -30,4 +30,4 @@
 
 **BLOCKER** Préparer par exemple `HMP-V2-0.1.0-beta.1-macos-arm64.dmg`, `HMP-V2-0.1.0-beta.1-windows-x64-setup.exe` et `SHA256SUMS.txt`. Inclure l’identifiant du commit, la provenance des builds, les notices et les notes de version. Après fabrication et signature, vérifier les fichiers téléchargés avec `shasum -a 256 -c SHA256SUMS.txt` sur macOS et `Get-FileHash -Algorithm SHA256` sur Windows. L’empreinte détecte un fichier modifié par rapport au manifeste publié. Les signatures de plateforme établissent l’identité de l’éditeur selon les règles locales. Les rapports de transfert V2 décrivent séparément l’intégrité de la copie média.
 
-[Audit](BETA_READINESS_AUDIT.md) · [Checklist](BETA_RELEASE_CHECKLIST.md)
+[Audit](BETA_READINESS_AUDIT.md) · [Checklist](BETA_RELEASE_CHECKLIST.md) · [Procédure de qualification finale](BETA_QUALIFICATION_RUNBOOK.md)
