@@ -2,6 +2,15 @@ import { invoke, isTauri } from '@tauri-apps/api/core'
 
 export type Recorder = { id: string; name: string; host: string; port: number }
 export type Deck = { recorder: Recorder; model: string }
+export type SavedDeck = Deck & {
+  custom_name: string | null
+  unique_id: string | null
+  protocol_version: string | null
+}
+export type Connection = 'checking' | 'online' | 'offline' | 'unconfirmed'
+export type Identified = { deck: SavedDeck; connection: 'online' | 'offline' }
+export type RecorderEdit = { action: 'rename'; id: string; name: string }
+  | { action: 'remove'; id: string } | { action: 'reset' }
 export type Media = { recorder_id: string; remote_path: string; size: string | null; directory: boolean }
 export type Duplicate = 'rename' | 'skip' | 'overwrite'
 export type Checksum = 'none' | 'md5' | 'sha256' | 'both'
@@ -22,8 +31,14 @@ export type Job = {
 export const bridge = {
   native: isTauri(),
   info: () => invoke<PreviewInfo>('preview_info'),
-  identify: (host: string) => invoke<Deck>('identify_deck', { host }),
+  identify: (host: string) => invoke<Identified>('identify_deck', { host }),
   list: (recorderId: string, path: string) => invoke<Media[]>('list_media', { recorderId, path }),
+}
+export const equipment = {
+  list: () => invoke<SavedDeck[]>('saved_recorders'),
+  verify: (id: string, acceptUnidentified: boolean) => invoke<Exclude<Connection, 'checking'>>('verify_recorder', { id, acceptUnidentified }),
+  edit: (edit: RecorderEdit) => invoke<SavedDeck[]>('edit_recorders', { edit }),
+  json: (importFile: boolean) => invoke<{ added: SavedDeck[]; skipped: number } | null>('equipment_json', { import: importFile }),
 }
 
 export function errorMessage(error: unknown): string {

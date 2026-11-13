@@ -1,22 +1,23 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use hmp_contract::{ErrorDto, MediaEntryDto, RecorderDto, SCHEMA_VERSION};
+use hmp_contract::{ErrorDto, MediaEntryDto, SCHEMA_VERSION};
 mod offload;
+mod recorders;
 #[cfg(all(windows, feature = "windows-qualification"))]
 mod windows_qualification;
 
-use hmp_core::ports::Cancellation;
 use hmp_domain::TransferError;
-use hmp_infra::HyperDeckDiscovery;
 use offload::{Enqueue, Offload, Options, QueueView, Report, SettingsView, public_error};
+use recorders::{
+    EquipmentStore, edit_recorders, equipment_json, identify_deck, saved_recorders, verify_recorder,
+};
 use serde::{Deserialize, Serialize};
 use std::{
-    net::{Ipv4Addr, SocketAddrV4},
+    net::Ipv4Addr,
     sync::{
         Arc,
         atomic::{AtomicU8, Ordering},
     },
-    time::Duration,
 };
 use tauri::{Manager, State, Window};
 use tauri_plugin_dialog::DialogExt;
@@ -28,12 +29,6 @@ struct PreviewInfo {
     version: &'static str,
     schema_version: u32,
     profile: &'static str,
-}
-
-#[derive(Serialize)]
-struct Deck {
-    recorder: RecorderDto,
-    model: String,
 }
 
 fn local_ipv4(host: &str) -> Result<Ipv4Addr, TransferError> {
@@ -56,22 +51,6 @@ fn preview_info() -> PreviewInfo {
         schema_version: SCHEMA_VERSION,
         profile: PROFILE,
     }
-}
-
-#[tauri::command]
-async fn identify_deck(state: State<'_, Arc<Offload>>, host: String) -> Result<Deck, ErrorDto> {
-    let ip = local_ipv4(host.trim()).map_err(public_error)?;
-    let identity = HyperDeckDiscovery::new(Duration::from_secs(3))
-        .map_err(public_error)?
-        .identify(SocketAddrV4::new(ip, 9993), &Cancellation::default())
-        .await
-        .map_err(public_error)?;
-    let recorder = RecorderDto::from(&identity.recorder);
-    state.remember(identity.recorder);
-    Ok(Deck {
-        recorder,
-        model: identity.model,
-    })
 }
 
 #[tauri::command]
@@ -199,6 +178,7 @@ fn main() {
             std::fs::create_dir_all(&profile)?;
             let service = tauri::async_runtime::block_on(async { Offload::new(&profile) })?;
             app.manage(Arc::new(service));
+            app.manage(EquipmentStore::open(&profile));
             #[cfg(all(windows, feature = "windows-qualification"))]
             if let Some(window) = app.get_webview_window("main") {
                 windows_qualification::start(window);
@@ -214,6 +194,10 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             preview_info,
             identify_deck,
+            saved_recorders,
+            verify_recorder,
+            edit_recorders,
+            equipment_json,
             list_media,
             transfer_settings,
             choose_destination,

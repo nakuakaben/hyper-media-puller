@@ -1,7 +1,7 @@
 use super::*;
 use hmp_domain::{Recorder, RecorderId, Uuid};
 use serde_json::{Value, json};
-use std::{fs, io};
+use std::{fs, io, time::Duration};
 use tauri::{
     WebviewWindow,
     ipc::{CallbackFn, InvokeBody},
@@ -104,6 +104,7 @@ fn ipc_listing_queue_actions_snapshot_and_real_report() {
     });
     let app = tauri::test::mock_builder()
         .manage(service.clone())
+        .manage(EquipmentStore::open(profile.path()))
         .invoke_handler(tauri::generate_handler![
             list_media,
             transfer_settings,
@@ -111,7 +112,9 @@ fn ipc_listing_queue_actions_snapshot_and_real_report() {
             enqueue_transfer,
             transfer_action,
             transfer_queue,
-            transfer_report
+            transfer_report,
+            edit_recorders,
+            saved_recorders
         ])
         .build(context())
         .unwrap();
@@ -199,6 +202,24 @@ fn ipc_listing_queue_actions_snapshot_and_real_report() {
         "c97c29c7a71b392b437ee03fd17f09bb10b75e879466fc0eb757b2c4a78ac938"
     );
     assert!(report["jobs"][0]["ended_at_millis"].is_string());
+
+    assert_eq!(
+        call("edit_recorders", json!({"edit": {"action": "reset"}})),
+        json!([])
+    );
+    assert_eq!(call("saved_recorders", json!({})), json!([]));
+    assert!(
+        invoke(
+            &window,
+            "list_media",
+            json!({"recorderId": id, "path": "/"})
+        )
+        .is_err()
+    );
+    assert_eq!(call("transfer_queue", json!({}))["jobs"][0], terminal);
+    let after = call("transfer_report", json!({"batchId": batch}));
+    assert_eq!(report["jobs"], after["jobs"]);
+    assert_eq!(fs::read(first.path().join(NAME)).unwrap(), MEDIA);
 
     tauri::async_runtime::block_on(async {
         service.engine().shutdown().await.unwrap();

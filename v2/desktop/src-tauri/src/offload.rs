@@ -1,4 +1,6 @@
-use hmp_contract::{BatchOptionsDto, ErrorDto, JobDto, MediaEntryDto, SCHEMA_VERSION, SnapshotDto};
+use hmp_contract::{
+    BatchOptionsDto, ErrorDto, JobDto, MediaEntryDto, RecorderDto, SCHEMA_VERSION, SnapshotDto,
+};
 use hmp_core::{
     BatchExecution, Engine, EngineEvent, EventKind, Snapshot,
     ports::{Cancellation, Clock, EngineConfig, EnginePorts, EventSink, IdSource, RemoteReadPort},
@@ -238,12 +240,20 @@ fn load(path: &Path) -> Result<Preferences> {
     }
 }
 
-fn save(path: &Path, preferences: &Preferences) -> io::Result<()> {
-    let mut file = tempfile::NamedTempFile::new_in(path.parent().expect("profile directory"))?;
-    serde_json::to_writer_pretty(&mut file, preferences)?;
+pub fn write_json(path: &Path, value: &impl Serialize, replace: bool) -> io::Result<()> {
+    let parent = path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "Dossier local requis"))?;
+    let mut file = tempfile::NamedTempFile::new_in(parent)?;
+    serde_json::to_writer_pretty(&mut file, value)?;
     file.flush()?;
     file.as_file().sync_all()?;
-    file.persist(path).map_err(|error| error.error)?;
+    if replace {
+        file.persist(path).map_err(|error| error.error)?;
+    } else {
+        file.persist_noclobber(path).map_err(|error| error.error)?;
+    }
     Ok(())
 }
 
@@ -319,6 +329,26 @@ impl Offload {
         registry.recorders.insert(id, recorder);
     }
 
+    pub fn rename_if_online(&self, recorder: &RecorderDto) {
+        let recorder = Recorder::try_from(recorder.clone()).expect("configuration validée");
+        let mut registry = self.registry.lock().expect("recorders");
+        if let Some(previous) = registry.recorders.get_mut(&recorder.id()) {
+            *previous = recorder;
+        }
+    }
+
+    pub fn forget(&self, id: &str) {
+        if let Ok(id) = id.parse() {
+            let mut registry = self.registry.lock().expect("recorders");
+            registry.recorders.remove(&id);
+            registry.listings.retain(|(recorder, _), _| *recorder != id);
+        }
+    }
+
+    pub fn clear_recorders(&self) {
+        *self.registry.lock().expect("recorders") = Registry::default();
+    }
+
     pub fn recorder(&self, id: &str) -> Result<Recorder> {
         self.registry
             .lock()
@@ -339,21 +369,23 @@ impl Offload {
         let _ = session.close().await;
         let listing = listing?;
         let result = listing.iter().map(MediaEntryDto::from).collect();
-        self.remember_listing(recorder.id(), parent, listing);
-        Ok(result)
-    }
-
-    pub fn remember_listing(&self, id: RecorderId, parent: RemotePath, media: Vec<MediaEntry>) {
         let mut registry = self.registry.lock().expect("recorders");
+        let id = recorder.id();
+        if registry.recorders.get(&id) != Some(&recorder) {
+            return Err(TransferError::invalid(
+                "Enregistreur modifié pendant la lecture",
+            ));
+        }
         if registry.listings.len() >= 256 {
             registry.listings.clear();
         }
-        registry.listings.insert((id, parent), media);
+        registry.listings.insert((id, parent), listing);
+        Ok(result)
     }
 
     async fn persist(&self, preferences: Preferences) -> Result<()> {
         let path = self.preferences_file.clone();
-        tokio::task::spawn_blocking(move || save(&path, &preferences))
+        tokio::task::spawn_blocking(move || write_json(&path, &preferences, true))
             .await
             .map_err(|error| settings_io(io::Error::other(error)))?
             .map_err(settings_io)
@@ -501,7 +533,7 @@ impl Offload {
     pub async fn queue(&self) -> Result<QueueView> {
         let local = self.local.lock().await;
         let snapshot = self.engine.snapshot().await?;
-        let recorders = self
+        let mut recorders: BTreeMap<String, String> = self
             .registry
             .lock()
             .expect("recorders")
@@ -509,6 +541,12 @@ impl Offload {
             .iter()
             .map(|(id, recorder)| (id.to_string(), recorder.name().into()))
             .collect();
+        for job in &snapshot.jobs {
+            let recorder = job.request().recorder();
+            recorders
+                .entry(recorder.id().to_string())
+                .or_insert_with(|| recorder.name().into());
+        }
         let mut destinations: Vec<_> = local.batches.values().cloned().collect();
         destinations.sort_by(|left, right| left.created_at_millis.cmp(&right.created_at_millis));
         Ok(QueueView {

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { version } from '../package.json'
 import { Database, FolderOpen, Info, Network, Settings2, SlidersHorizontal } from 'lucide-react'
 import type { Checksum, Duplicate, PreviewInfo } from './contracts'
@@ -42,16 +43,17 @@ export function Destination({ demo, values, onChange, onChoose, available, busy 
   </div>
 }
 
-export function Settings({ demo, native, info, values, onChange, onConnect, onReset, onComponents, onChoose, available, busy, onSave, saved }: {
+export function Settings({ demo, native, info, values, onChange, onConnect, onReset, onComponents, onChoose, available, busy, onSave, saved, canConnect, equipmentPanel }: {
   demo: boolean; native: boolean; info?: PreviewInfo; values: Preferences; onChange: (p: Preferences) => void
   onConnect: () => void; onReset: () => void; onComponents: () => void
   onChoose: () => void; available?: string; busy: boolean; onSave: () => void; saved: boolean
+  canConnect: boolean; equipmentPanel: ReactNode
 }) {
   return <div className="settings-grid">
     <Panel title="Connexions" icon={Network}><div className="panel-body stack">
       <Badge label={demo ? 'Démonstration' : 'FTP en lecture seule'} tone={demo ? 'warn' : 'neutral'} />
       <p>Identification par IPv4 locale, puis navigation FTP anonyme sur le port 21.</p>
-      <button disabled={demo || !native} onClick={onConnect}>Identifier un HyperDeck</button>
+      <button disabled={demo || !native || !canConnect} onClick={onConnect}>Identifier un HyperDeck</button>
     </div></Panel>
     <Panel title="Destination" icon={Database}><div className="panel-body stack">
       <Destination demo={demo} values={values} onChange={onChange} onChoose={onChoose} available={available} busy={busy || !native} />
@@ -79,5 +81,6 @@ export function Settings({ demo, native, info, values, onChange, onConnect, onRe
       <div className="row"><button onClick={onReset}><Settings2 size={14} />Réinitialiser la disposition</button>
         <button onClick={onComponents}>Planche des composants</button></div>
     </div></Panel>
+    {equipmentPanel}
   </div>
 }
