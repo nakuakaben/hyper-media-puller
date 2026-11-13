@@ -24,4 +24,6 @@ Les captures et l’aperçu sont disponibles dans `v2/desktop/beta-artifacts/lot
 
 ## Acceptation de la bêta
 
-Attendre la validation graphique explicite avant de reprendre les essais de [BETA_ACCEPTANCE.md](BETA_ACCEPTANCE.md). Les installateurs des lots précédents restent des preuves historiques. Construire les nouveaux candidats en configuration standard, contrôler l’icône et l’absence des quatre photos, puis calculer leurs SHA-256. Refaire Gatekeeper sur compte standard et SmartScreen sous Windows x64 avec WebView2 absent puis présent. Exercer le FTP, le SHA-256, l’annulation, la collision, le remplacement ou la réinstallation, puis vérifier la conservation des médias et préférences. Reporter les preuves dans la [checklist](BETA_RELEASE_CHECKLIST.md).
+Le propriétaire a validé la restauration graphique et le nom **HMP**. Le lot 12 a reconstruit les candidats standard et vérifié leurs SHA-256. Le DMG a été lancé, remplacé et retiré sur le compte macOS courant avec conservation des préférences. Le NSIS a confirmé le titre, l’entrée de désinstallation et les raccourcis sous compte Windows standard avec WebView2 présent. [Six contrôles du lot 12](https://github.com/nakuakaben/hyper-media-puller/actions/runs/43403119160)
+
+Ces essais restent liés aux installateurs du lot 12. La [procédure d’acceptation](BETA_ACCEPTANCE.md) et la [checklist de publication](BETA_RELEASE_CHECKLIST.md) suivent les candidats intégrés. Les essais Gatekeeper, SmartScreen et le parcours FTP dans les applications installées restent des validations distinctes.
