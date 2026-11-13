@@ -4,6 +4,23 @@
 
 Les tests Windows x64 en WebView2 utilisent un HyperDeck et un FTP synthétiques. L’intégration vérifie aussi la conservation de la configuration matérielle, des rapports en mémoire et des médias. Le premier offload physique du Studio HD Plus sous macOS précède la candidate. Le Studio Mini 2017, SMB et les essais matériels Windows restent à qualifier.
 
+## Correctif des enregistreurs — validation physique du 13 novembre 2026
+
+Le propriétaire a confirmé les six essais suivants sur un HyperDeck physique avec le build interne `0.1.0-beta.1` du correctif, issu du commit `6d123ca`. [PR #15](https://github.com/nakuakaben/hyper-media-puller/pull/15)
+
+| Essai | Résultat confirmé |
+| --- | --- |
+| Démarrage | Réussi |
+| Renommage | Réussi |
+| Persistance après redémarrage | Réussie |
+| Déconnexion | Réussie |
+| Reconnexion automatique | Réussie |
+| Suppression d’un enregistreur | Réussie |
+
+Le banc Windows WebView2 couvre séparément le retrait persistant, l’ajout volontaire, les transferts FTP, le SHA-256 flux/local, l’annulation et la collision avec une source synthétique. L’export et l’import JSON ont été exercés dans l’application macOS avec un profil isolé. La plateforme, le modèle et l’empreinte du package utilisé pour ces six essais physiques n’ont pas été précisés dans la confirmation. [CI du correctif testé](https://github.com/nakuakaben/hyper-media-puller/actions/runs/43423603676)
+
+La publication reste en **NO-GO**. Les essais des installateurs depuis le canal final, les protections système et les autres critères ouverts continuent d’être suivis dans la [checklist bêta](BETA_RELEASE_CHECKLIST.md).
+
 ## Essais manuels à regrouper
 
 Préparer un Mac ARM64 avec une session locale standard distincte, ainsi qu’un PC ou une VM **Windows x64** avec un compte standard, une session graphique et un instantané propre. Sur Windows, commencer par un environnement où WebView2 Evergreen est réellement absent. Vérifier son absence avec la méthode de détection Microsoft avant l’installation. Pour la seconde passe, garder le runtime installé. Prévoir un réseau privé de test avec les ports TCP 9993 et 21 accessibles et un HyperDeck de test au repos ou un serveur synthétique. Un test sur serveur synthétique doit être enregistré comme tel. [Détection et distribution WebView2](https://learn.microsoft.com/microsoft-edge/webview2/concepts/distribution)
