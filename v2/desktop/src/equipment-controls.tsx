@@ -11,13 +11,22 @@ export function RecorderMenu({ x, y, name, onClose, onRename, onRemove, onVerify
   useEffect(() => {
     const previous = document.activeElement
     menu.current?.querySelector('button')?.focus()
-    return () => { if (previous instanceof HTMLElement) previous.focus() }
+    return () => {
+      requestAnimationFrame(() => {
+        if (!document.querySelector('dialog[open]') && previous instanceof HTMLElement) previous.focus()
+      })
+    }
   }, [])
   return <div className="recorder-menu-layer" onPointerDown={event => { if (event.target === event.currentTarget) onClose() }}
     onContextMenu={event => { event.preventDefault(); onClose() }}>
     <div className="recorder-menu stack" ref={menu} role="group" aria-label={`Actions pour ${name}`}
       style={{ left: Math.max(4, Math.min(x, window.innerWidth - 246)), top: Math.max(4, Math.min(y, window.innerHeight - 132)) }}
-      onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) onClose() }}
+      onPointerDown={event => {
+        // WKWebView may blur a focused button before dispatching the next button's click.
+        if (event.button === 0 && event.target instanceof Element && event.target.closest('button')) {
+          event.preventDefault()
+        }
+      }}
       onKeyDown={event => { if (event.key === 'Escape') onClose() }}>
       <button onClick={onRename}>Renommer</button>
       <button onClick={onVerify} disabled={checking}>Vérifier la connexion</button>

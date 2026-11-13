@@ -141,7 +141,7 @@ function App() {
   const decks = demo ? visibleDemoDecks : hardware.decks
   const id = demo ? demoId : liveId
   const activeDeck = decks.find(deck => deck.recorder.id === id)
-  const connection = liveId ? hardware.status[liveId] : undefined
+  const connection = !demo && liveId ? hardware.status[liveId] ?? 'checking' : undefined
   const listingKey = JSON.stringify([demo, id, path, refresh, connection])
   let rawListing: Listing = !activeDeck ? idle : result?.key === listingKey ? result.listing : { status: 'loading', items: [] }
   if (activeDeck && !demo && connection !== 'online' && connection !== 'checking') {

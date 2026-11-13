@@ -10,6 +10,12 @@ export function useEquipment() {
   const [notice, setNotice] = useState('')
   const checking = useRef(new Map<string, symbol>())
   const manuallyConfirmed = useRef(new Set<string>())
+  const savedDecks = useRef<SavedDeck[]>([])
+
+  function replaceDecks(next: SavedDeck[]) {
+    savedDecks.current = next
+    setDecks(next)
+  }
 
   async function verify(deck: SavedDeck, acceptUnidentified = false, background = false) {
     const id = deck.recorder.id
@@ -39,7 +45,7 @@ export function useEquipment() {
     let active = true
     equipment.list().then(saved => {
       if (!active) return
-      setDecks(saved)
+      replaceDecks(saved)
       setReady(true)
       // Limit background probes when importing a large prestation.
       void verifyAll(saved, false, () => active)
@@ -48,21 +54,33 @@ export function useEquipment() {
   }, [])
 
   useEffect(() => {
-    if (!decks.length) return
+    if (!bridge.native || !ready) return
     let current = true
-    let timer: number
-    const schedule = () => { timer = window.setTimeout(async () => {
-      await verifyAll(decks, true, () => current)
-      if (current) schedule()
-    }, 30_000) }
-    schedule()
-    return () => { current = false; window.clearTimeout(timer) }
-  }, [decks])
+    let running = false
+    const refresh = async () => {
+      if (running) return
+      running = true
+      try { await verifyAll(savedDecks.current, true, () => current) }
+      finally { running = false }
+    }
+    const interval = window.setInterval(refresh, 30_000)
+    const resume = () => { if (document.visibilityState === 'visible') void refresh() }
+    window.addEventListener('focus', resume)
+    document.addEventListener('visibilitychange', resume)
+    return () => {
+      current = false
+      window.clearInterval(interval)
+      window.removeEventListener('focus', resume)
+      document.removeEventListener('visibilitychange', resume)
+    }
+  }, [ready])
 
   async function verifyAll(saved: SavedDeck[], background = false, current = () => true) {
     if (!background) setStatus(previous => ({ ...previous, ...Object.fromEntries(saved.map(deck => [deck.recorder.id, 'checking'])) }))
     for (let index = 0; index < saved.length && current(); index += 8) {
-      await Promise.all(saved.slice(index, index + 8).map(deck => verify(deck, false, background)))
+      const batch = saved.slice(index, index + 8).flatMap(deck =>
+        savedDecks.current.filter(current => current.recorder.id === deck.recorder.id))
+      await Promise.all(batch.map(deck => verify(deck, false, background)))
     }
   }
 
@@ -70,7 +88,8 @@ export function useEquipment() {
     const id = deck.recorder.id
     checking.current.delete(id)
     if (deck.unique_id === null && connection === 'online') manuallyConfirmed.current.add(id)
-    setDecks(previous => previous.some(item => item.recorder.id === id)
+    const previous = savedDecks.current
+    replaceDecks(previous.some(item => item.recorder.id === id)
       ? previous.map(item => item.recorder.id === id ? deck : item)
       : [...previous, deck])
     setStatus(previous => ({ ...previous, [id]: connection }))
@@ -95,7 +114,7 @@ export function useEquipment() {
           return next
         })
       }
-      setDecks(updated)
+      replaceDecks(updated)
     } finally {
       setBusy(false)
     }
@@ -109,7 +128,7 @@ export function useEquipment() {
       const result = await equipment.json(importFile)
       if (!result) return
       if (importFile) {
-        setDecks(previous => [...previous, ...result.added])
+        replaceDecks([...savedDecks.current, ...result.added])
         setNotice(`${result.added.length} ajouté(s), ${result.skipped} doublon(s) ou conflit(s) ignoré(s).`)
         void verifyAll(result.added)
       } else {

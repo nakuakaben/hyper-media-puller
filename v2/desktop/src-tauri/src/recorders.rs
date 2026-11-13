@@ -9,7 +9,7 @@ use hmp_infra::{DeckIdentity, FtpRemote, HyperDeckDiscovery};
 use serde::{Deserialize, Serialize};
 use std::{
     fs::{File, OpenOptions},
-    io::{self, Read},
+    io::{self, Read, Write},
     net::SocketAddrV4,
     path::{Path, PathBuf},
     sync::{Arc, Mutex, MutexGuard},
@@ -154,6 +154,7 @@ pub struct EquipmentStore {
     path: PathBuf,
     config: Mutex<Result<Configuration>>,
     _lock: Option<File>,
+    diagnostics: Mutex<()>,
 }
 
 #[derive(Serialize)]
@@ -203,10 +204,34 @@ impl EquipmentStore {
             ),
             Err(error) => (None, Err(configuration_io(error))),
         };
-        Self {
+        let store = Self {
             path,
             config: Mutex::new(config),
             _lock: lock,
+            diagnostics: Mutex::new(()),
+        };
+        if let Err(error) = store.lock().as_ref() {
+            store.log_failure("ouverture", error);
+        }
+        store
+    }
+
+    fn log_failure(&self, operation: &str, error: &TransferError) {
+        let line = format!("{operation} [{:?}] {}", error.code, error.message);
+        eprintln!("Configuration matérielle : {line}");
+        // Keep a bounded diagnostic file for applications launched from Finder or Explorer.
+        let _guard = self.diagnostics.lock().expect("journal matériel");
+        let path = self.path.with_file_name("equipment-diagnostics.log");
+        let truncate = path.metadata().is_ok_and(|info| info.len() >= 64 * 1024);
+        let result = OpenOptions::new()
+            .create(true)
+            .write(true)
+            .append(!truncate)
+            .truncate(truncate)
+            .open(path)
+            .and_then(|mut file| writeln!(file, "{line}"));
+        if let Err(error) = result {
+            eprintln!("Journal matériel inaccessible : {error}");
         }
     }
 
@@ -293,17 +318,10 @@ async fn probe(host: &str) -> Result<DeckIdentity> {
         .await
 }
 
-async fn ftp_available(recorder: &Recorder) -> bool {
-    let Ok(ftp) = FtpRemote::new(Duration::from_secs(3)) else {
-        return false;
-    };
-    match ftp.connect(recorder, &Cancellation::default()).await {
-        Ok(mut session) => {
-            let _ = session.close().await;
-            true
-        }
-        Err(_) => false,
-    }
+async fn check_ftp(recorder: &Recorder) -> Result<()> {
+    let ftp = FtpRemote::new(Duration::from_secs(3))?;
+    let mut session = ftp.connect(recorder, &Cancellation::default()).await?;
+    session.close().await
 }
 
 impl From<DeckIdentity> for Equipment {
@@ -333,7 +351,12 @@ pub async fn identify_deck(
     host: String,
 ) -> std::result::Result<Identified, ErrorDto> {
     let identity = probe(&host).await.map_err(public_error)?;
-    let online = ftp_available(&identity.recorder).await;
+    let online = check_ftp(&identity.recorder)
+        .await
+        .inspect_err(|error| {
+            store.log_failure("FTP après identification", error);
+        })
+        .is_ok();
     let deck = store
         .identify(identity.into(), online, &state)
         .map_err(public_error)?;
@@ -379,12 +402,20 @@ impl EquipmentStore {
             .ok_or_else(|| TransferError::invalid("Enregistreur absent de la configuration"))?;
         let identity = probe(&saved.host).await;
         let connection = match identity {
-            Err(_) => Connection::Offline,
+            Err(error) => {
+                self.log_failure("sonde HyperDeck", &error);
+                Connection::Offline
+            }
             Ok(identity) if !saved.matches_probe(&identity, accept_unidentified) => {
                 Connection::Unconfirmed
             }
-            Ok(identity) if ftp_available(&identity.recorder).await => Connection::Online,
-            Ok(_) => Connection::Offline,
+            Ok(identity) => match check_ftp(&identity.recorder).await {
+                Ok(()) => Connection::Online,
+                Err(error) => {
+                    self.log_failure("sonde FTP", &error);
+                    Connection::Offline
+                }
+            },
         };
         self.finish_verify(&saved, connection, offload)
     }
@@ -448,6 +479,11 @@ pub fn edit_recorders(
     state: State<'_, Arc<Offload>>,
     edit: Edit,
 ) -> std::result::Result<Vec<Deck>, ErrorDto> {
+    let operation = match edit {
+        Edit::Rename { .. } => "renommage",
+        Edit::Remove { .. } => "retrait",
+        Edit::Reset => "réinitialisation",
+    };
     store
         .change(
             |entries| {
@@ -478,7 +514,10 @@ pub fn edit_recorders(
                 Edit::Reset => state.clear_recorders(),
             },
         )
-        .map_err(public_error)
+        .map_err(|error| {
+            store.log_failure(operation, &error);
+            public_error(error)
+        })
 }
 
 #[derive(Serialize)]
