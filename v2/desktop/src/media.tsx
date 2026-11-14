@@ -122,14 +122,14 @@ export function MediaBrowser({ deck, path, listing, selected, setSelected, navig
   </Panel>
 }
 
-export function TransferOptions({ demo, values, onChange, count, bytes, onAdd, onChoose, available, busy }: {
+export function TransferOptions({ demo, values, onChange, count, bytes, onAdd, onChoose, available, busy, destinationError }: {
   demo: boolean; values: Preferences; onChange: (p: Preferences) => void
   count: number; bytes: string | null; onAdd: () => void
-  onChoose: () => void; available?: string; busy: boolean
+  onChoose: () => void; available?: string; busy: boolean; destinationError?: string
 }) {
   return <Panel title="Destination et options" icon={SlidersHorizontal}>
     <div className="panel-body stack">
-      <Destination demo={demo} values={values} onChange={onChange} onChoose={onChoose} available={available} busy={busy} />
+      <Destination demo={demo} values={values} onChange={onChange} onChoose={onChoose} available={available} busy={busy} destinationError={destinationError} />
       <hr />
       <Options values={values} onChange={onChange} />
       <div className="selection-summary"><Clapperboard size={17} /><div><strong>{count} fichier(s) sélectionné(s)</strong>

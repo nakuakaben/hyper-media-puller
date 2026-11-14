@@ -20,6 +20,7 @@ export function useOffload() {
   const [rates, setRates] = useState<Record<string, Rate>>({})
   const [busy, setBusy] = useState(false)
   const [feedback, setFeedback] = useState('')
+  const [destinationError, setDestinationError] = useState('')
   const [connectionError, setConnectionError] = useState('')
   const lock = useRef(false)
   const sampled = useRef<{ queue: Queue; timestamp: number }>()
@@ -69,20 +70,20 @@ export function useOffload() {
     return () => { mounted = false; window.clearTimeout(timer) }
   }, [])
 
-  async function perform<T>(operation: () => Promise<T>): Promise<T | undefined> {
+  async function perform<T>(operation: () => Promise<T>, reportError = setFeedback): Promise<T | undefined> {
     if (lock.current) return
     lock.current = true
     setBusy(true)
-    setFeedback('')
+    reportError('')
     try { return await operation() }
-    catch (error) { setFeedback(errorMessage(error)); return undefined }
+    catch (error) { reportError(errorMessage(error)); return undefined }
     finally { lock.current = false; setBusy(false) }
   }
 
   async function choose() {
-    const value = await perform(offload.destination)
+    const value = await perform(offload.destination, setDestinationError)
     if (value) setSettings(value)
   }
 
-  return { settings, setSettings, queue, rates, busy, feedback, connectionError, perform, choose }
+  return { settings, setSettings, queue, rates, busy, feedback, destinationError, connectionError, perform, choose }
 }

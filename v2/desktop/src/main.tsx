@@ -281,7 +281,7 @@ function App() {
   }
 
   const transferOptions = <TransferOptions demo={demo} values={values} onChange={setValues}
-    count={chosen.length} bytes={bytes} onAdd={addJobs} onChoose={real.choose} available={available} busy={!demo && (real.busy || !bridge.native)} />
+    count={chosen.length} bytes={bytes} onAdd={addJobs} onChoose={real.choose} available={available} destinationError={real.destinationError} busy={!demo && (real.busy || !bridge.native)} />
   return <div className="app">
     <main className="workspace" id="main-content">
       <header className="workspace-head">
@@ -319,7 +319,7 @@ function App() {
       {page === 'reports' && (demo ? <Reports demo jobs={visibleJobs} /> : <RealReports queue={real.queue} />)}
       {page === 'settings' && <Settings demo={demo} native={bridge.native} info={info} values={values} onChange={setValues}
         onConnect={() => setOverlay('connect')} onReset={() => setLayout(defaultLayout)} onComponents={() => setOverlay('components')}
-        onChoose={real.choose} available={available} busy={real.busy} onSave={saveDefaults} saved={saved}
+        onChoose={real.choose} available={available} destinationError={real.destinationError} busy={real.busy} onSave={saveDefaults} saved={saved}
         canConnect={hardware.ready && !hardware.busy}
         equipmentPanel={<EquipmentSettings enabled={!demo && hardware.ready && !hardware.busy}
           hasDecks={hardware.decks.length > 0} notice={demo ? '' : hardware.notice}
