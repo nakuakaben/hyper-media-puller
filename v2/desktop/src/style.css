@@ -180,10 +180,6 @@ hr { width: 100%; border: 0; border-top: 1px solid var(--ui-border); margin: 1px
 .hint { font-size: 11px; }
 .key-values { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 14px; }
 .key-values dt { color: var(--ui-muted); }
-button.version-trigger {
-  min-height: 0; padding: 0; border: 0; background: transparent; font: inherit; color: inherit;
-}
-
 .recorder-list { flex: 1; min-height: 0; overflow: auto; }
 button.recorder {
   display: grid;
