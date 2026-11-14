@@ -7,6 +7,7 @@ use if_addrs::IfAddr;
 use sha2::{Digest, Sha256};
 use std::{
     net::{Ipv4Addr, SocketAddr, SocketAddrV4},
+    sync::atomic::{AtomicBool, Ordering},
     time::Duration,
 };
 use tokio::{
@@ -27,6 +28,18 @@ pub struct DeckIdentity {
     pub unique_id: Option<String>,
 }
 
+pub struct ScanInterface {
+    pub name: String,
+    pub address: Ipv4Addr,
+    pub cidr: String,
+}
+
+pub enum ScanObservation {
+    Closed,
+    Open(Ipv4Addr),
+    Identified(DeckIdentity),
+}
+
 pub struct HyperDeckDiscovery {
     timeout: Duration,
 }
@@ -44,7 +57,7 @@ impl HyperDeckDiscovery {
         endpoint: SocketAddrV4,
         cancel: &Cancellation,
     ) -> Result<DeckIdentity> {
-        probe(endpoint, None, self.timeout, cancel).await
+        probe(endpoint, None, self.timeout, cancel, None).await
     }
 }
 
@@ -96,50 +109,99 @@ fn scan_range(scope: &str) -> Result<(u32, u32)> {
 #[async_trait]
 impl DiscoveryPort for HyperDeckDiscovery {
     async fn interfaces(&self) -> Result<Vec<String>> {
-        let mut interfaces: Vec<_> = local_interfaces()?
+        Ok(Self::scan_interfaces()?
             .into_iter()
-            .map(|(name, ip, mask)| {
-                let prefix = u32::from(mask).count_ones().max(24);
-                let network = Ipv4Addr::from(u32::from(ip) & (u32::MAX << (32 - prefix)));
-                format!("{name} ({ip}) {network}/{prefix}")
-            })
-            .collect();
-        interfaces.sort();
-        interfaces.dedup();
-        Ok(interfaces)
+            .map(|entry| format!("{} ({}) {}", entry.name, entry.address, entry.cidr))
+            .collect())
     }
 
     async fn discover(&self, scope: &str, cancel: &Cancellation) -> Result<Vec<Recorder>> {
+        let mut found = Vec::new();
+        self.scan(scope, None, cancel, |_, _, result| {
+            if let Some(ScanObservation::Identified(identity)) = result {
+                found.push(identity.recorder);
+            }
+        })
+        .await?;
+        found.sort_by_key(|recorder| recorder.host().parse::<Ipv4Addr>().ok());
+        let mut ids = std::collections::HashSet::new();
+        found.retain(|recorder| ids.insert(recorder.id()));
+        Ok(found)
+    }
+}
+
+impl HyperDeckDiscovery {
+    pub fn scan_interfaces() -> Result<Vec<ScanInterface>> {
+        let mut entries = local_interfaces()?;
+        entries.sort_unstable();
+        entries.dedup();
+        Ok(entries
+            .into_iter()
+            .map(|(name, address, mask)| {
+                let prefix = u32::from(mask).count_ones().max(24);
+                let network = Ipv4Addr::from(u32::from(address) & (u32::MAX << (32 - prefix)));
+                ScanInterface {
+                    name,
+                    address,
+                    cidr: format!("{network}/{prefix}"),
+                }
+            })
+            .collect())
+    }
+
+    pub async fn scan(
+        &self,
+        scope: &str,
+        interface: Option<(&str, Ipv4Addr)>,
+        cancel: &Cancellation,
+        mut progress: impl FnMut(u32, u32, Option<ScanObservation>) + Send,
+    ) -> Result<()> {
         if cancel.is_cancelled() {
             return Err(TransferError::cancelled());
         }
         let (first, last) = scan_range(scope)?;
         let source = local_interfaces()?
             .into_iter()
-            .find_map(|(_, ip, mask)| {
+            .find_map(|(name, ip, mask)| {
+                if interface
+                    .is_some_and(|(selected, address)| selected != name.as_str() || address != ip)
+                {
+                    return None;
+                }
                 let mask = u32::from(mask);
                 let network = u32::from(ip) & mask;
                 (first & mask == network && last & mask == network).then_some(ip)
             })
-            .ok_or_else(|| TransferError::invalid("scan range is outside the local interfaces"))?;
+            .ok_or_else(|| {
+                TransferError::invalid("La plage doit appartenir à l’interface locale sélectionnée")
+            })?;
+        let total = last - first + 1 - u32::from((first..=last).contains(&u32::from(source)));
+        let mut scanned = 0;
+        progress(0, total, None);
         let mut candidates = (first..=last)
             .map(Ipv4Addr::from)
             .filter(|ip| *ip != source);
         let mut tasks = JoinSet::new();
-        let mut found = Vec::new();
         loop {
             while tasks.len() < SCAN_CONCURRENCY {
                 let Some(ip) = candidates.next() else { break };
                 let token = cancel.clone();
                 let timeout = self.timeout;
                 tasks.spawn(async move {
-                    probe(
+                    let connected = AtomicBool::new(false);
+                    match probe(
                         SocketAddrV4::new(ip, CONTROL_PORT),
                         Some(source),
                         timeout,
                         &token,
+                        Some(&connected),
                     )
                     .await
+                    {
+                        Ok(identity) => ScanObservation::Identified(identity),
+                        Err(_) if connected.load(Ordering::Relaxed) => ScanObservation::Open(ip),
+                        Err(_) => ScanObservation::Closed,
+                    }
                 });
             }
             let completed = tokio::select! {
@@ -148,15 +210,15 @@ impl DiscoveryPort for HyperDeckDiscovery {
                 result = tasks.join_next() => result,
             };
             match completed {
-                Some(Ok(Ok(identity))) => found.push(identity.recorder),
-                Some(_) => {}
+                Some(Ok(observation)) => {
+                    scanned += 1;
+                    progress(scanned, total, Some(observation));
+                }
+                Some(Err(_)) => return Err(error("scan task failed")),
                 None => break,
             }
         }
-        found.sort_by_key(|recorder| recorder.host().parse::<Ipv4Addr>().ok());
-        let mut ids = std::collections::HashSet::new();
-        found.retain(|recorder| ids.insert(recorder.id()));
-        Ok(found)
+        Ok(())
     }
 }
 async fn probe(
@@ -164,6 +226,7 @@ async fn probe(
     source: Option<Ipv4Addr>,
     timeout: Duration,
     cancel: &Cancellation,
+    connected: Option<&AtomicBool>,
 ) -> Result<DeckIdentity> {
     bounded(timeout, cancel, Phase::Connecting, async {
         let socket = if let Some(source) = source {
@@ -176,6 +239,9 @@ async fn probe(
             TcpStream::connect(endpoint).await
         }
         .map_err(|_| error("HyperDeck control connection failed"))?;
+        if let Some(connected) = connected {
+            connected.store(true, Ordering::Relaxed);
+        }
         let mut socket = BufReader::new(socket);
         socket
             .get_mut()
@@ -237,4 +303,45 @@ fn identity_id(endpoint: SocketAddrV4, unique: Option<&str>) -> RecorderId {
     bytes[6] = (bytes[6] & 0x0f) | 0x80;
     bytes[8] = (bytes[8] & 0x3f) | 0x80;
     RecorderId::new(Uuid::from_bytes(bytes)).expect("versioned UUID is non-nil")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tokio::net::TcpListener;
+
+    #[tokio::test]
+    async fn tcp_open_without_device_info_is_not_identified() {
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await.unwrap();
+        let SocketAddr::V4(endpoint) = listener.local_addr().unwrap() else {
+            panic!("IPv4 fixture");
+        };
+        let server = tokio::spawn(async move {
+            let (mut socket, _) = listener.accept().await.unwrap();
+            socket.write_all(b"200 other service\r\n").await.unwrap();
+        });
+        let connected = AtomicBool::new(false);
+        let result = probe(
+            endpoint,
+            None,
+            Duration::from_secs(2),
+            &Cancellation::default(),
+            Some(&connected),
+        )
+        .await;
+        assert!(result.is_err());
+        assert!(connected.load(Ordering::Relaxed));
+        server.await.unwrap();
+    }
+
+    #[test]
+    fn bounded_scan_ranges_exclude_broadcast_and_reject_public_addresses() {
+        let link = u32::from(Ipv4Addr::new(192, 168, 1, 0));
+        assert_eq!(
+            scan_range("192.168.1.44/24").unwrap(),
+            (link + 1, link + 254)
+        );
+        assert!(scan_range("192.168.1.44/23").is_err());
+        assert!(scan_range("8.8.8.8/32").is_err());
+    }
 }

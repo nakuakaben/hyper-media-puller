@@ -12,6 +12,7 @@ import { CompactQueue, Reports, Transfers } from './transfers'
 import { RealReports } from './reports'
 import { useOffload } from './offload'
 import { useEquipment } from './equipment'
+import { NetworkScan } from './network-scan'
 import { EquipmentEdit, EquipmentSettings, RecorderMenu } from './equipment-controls'
 import { Badge, Empty, Loading, Panel, ProgressCell, Splitter, defaultLayout, layoutStyle, type Layout } from './ui'
 import './tokens.css'
@@ -29,7 +30,7 @@ const pages = [
   { id: 'settings', title: 'Paramètres', icon: Settings2 },
 ] as const
 type Page = typeof pages[number]['id']
-type Overlay = 'connect' | 'options' | 'components'
+type Overlay = 'scan' | 'connect' | 'options' | 'components'
 const layoutKey = 'hmp-v2.preview.layout'
 const idle: Listing = { status: 'idle', items: [] }
 
@@ -296,7 +297,7 @@ function App() {
       {!demo && real.feedback && <div className="callout error bridge-error" role="alert">{real.feedback}</div>}
       {page === 'media' && <div className="media-layout" style={layoutStyle(activeLayout)}>
         <div className={'upper' + (compact ? ' compact' : '')}>
-          <Recorders decks={decks} active={id} demo={demo} native={bridge.native} onSelect={chooseDeck} onConnect={() => setOverlay('connect')}
+          <Recorders decks={decks} active={id} demo={demo} native={bridge.native} onSelect={chooseDeck} onConnect={() => setOverlay('connect')} onSearch={() => setOverlay('scan')}
             canConnect={hardware.ready && !hardware.busy} connections={hardware.status}
             onActions={(id, x, y) => {
               const deck = hardware.decks.find(item => item.recorder.id === id)
@@ -335,6 +336,9 @@ function App() {
       <span><Activity size={13} />{demo ? 'Données fictives · aucun transfert physique' : realRunning ? 'Transferts réels en cours' : activeDeck ? activeDeck.recorder.host : 'Aucun appareil sélectionné'}</span>
       <span><Info size={13} />V2 bêta <span className="mono">{info?.version ?? version}</span></span>
     </footer>
+    {overlay === 'scan' && <Modal title="Rechercher des HyperDeck" wide onClose={() => setOverlay(undefined)}>
+      <NetworkScan onAdd={result => { hardware.identified(result); chooseDeck(result.deck.recorder.id) }} />
+    </Modal>}
     {overlay === 'connect' && <Modal title="Identifier un HyperDeck" onClose={() => setOverlay(undefined)}>
       <Connect onConnect={result => {
         hardware.identified(result)

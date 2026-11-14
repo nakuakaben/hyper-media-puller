@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use hmp_contract::{ErrorDto, MediaEntryDto, SCHEMA_VERSION};
+mod network_scan;
 mod offload;
 mod recorders;
 #[cfg(all(windows, feature = "windows-qualification"))]
@@ -170,6 +171,7 @@ fn context<R: tauri::Runtime>() -> tauri::Context<R> {
 fn main() {
     let stopping = Arc::new(AtomicU8::new(0));
     let app = tauri::Builder::default()
+        .manage(network_scan::NetworkScan::default())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let profile = app.path().app_data_dir()?;
@@ -200,6 +202,11 @@ fn main() {
             edit_recorders,
             equipment_json,
             list_media,
+            network_scan::network_interfaces,
+            network_scan::start_network_scan,
+            network_scan::network_scan_progress,
+            network_scan::cancel_network_scan,
+            network_scan::add_network_recorder,
             transfer_settings,
             choose_destination,
             save_transfer_options,

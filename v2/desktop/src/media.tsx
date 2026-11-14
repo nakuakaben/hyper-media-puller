@@ -11,16 +11,16 @@ const connectionLabels: Record<Connection, string> = {
   checking: 'Vérification en cours', online: 'En ligne', offline: 'Hors ligne', unconfirmed: 'Identité à confirmer',
 }
 
-export function Recorders({ decks, active, demo, native, onSelect, onConnect, canConnect, connections, onActions }: {
+export function Recorders({ decks, active, demo, native, onSelect, onConnect, onSearch, canConnect, connections, onActions }: {
   decks: Deck[]; active: string | undefined; demo: boolean; native: boolean
-  onSelect: (id: string) => void; onConnect: () => void
+  onSelect: (id: string) => void; onConnect: () => void; onSearch: () => void
   canConnect: boolean; connections: Record<string, Connection>; onActions: (id: string, x: number, y: number) => void
 }) {
   const [filter, setFilter] = useState('')
   const query = filter.trim().toLocaleLowerCase()
   const visible = decks.filter(({ recorder, model }) => [recorder.name, model, recorder.host].some(value => value.toLocaleLowerCase().includes(query)))
   return <Panel title="HyperDeck" icon={Server} meta={String(decks.length)}
-    actions={!demo && <button className="icon-button" disabled={!native || !canConnect} aria-label="Identifier un HyperDeck" title="Identifier un HyperDeck" onClick={onConnect}><Plus size={15} /></button>}>
+    actions={!demo && <><button className="icon-button" disabled={!native || !canConnect} aria-label="Rechercher des HyperDeck" title="Rechercher des HyperDeck" onClick={onSearch}><Search size={15} /></button><button className="icon-button" disabled={!native || !canConnect} aria-label="Identifier un HyperDeck" title="Identifier un HyperDeck" onClick={onConnect}><Plus size={15} /></button></>}>
     <div className="toolbar"><label className="input-icon"><Search size={14} aria-hidden="true" /><input aria-label="Filtrer les HyperDeck"
       value={filter} onChange={event => setFilter(event.target.value)} placeholder="Rechercher" /></label></div>
     <div className="recorder-list">
