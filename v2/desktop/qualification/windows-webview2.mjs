@@ -55,8 +55,9 @@ function embeddedWebView(root) {
 }
 
 const root = await realpath(await mkdtemp(join(tmpdir(), 'hmp-win-qa-')))
-const destination = join(root, 'Régie extérieure ' + 'session '.repeat(9).trimEnd())
-await mkdir(destination)
+const defaultDestination = join(root, 'Régie extérieure ' + 'session '.repeat(9).trimEnd())
+await mkdir(defaultDestination)
+const destination = process.env.HMP_QA_EXFAT_VOLUME || defaultDestination
 await mkdir(join(root, 'profile'))
 const report = { schema_version: 1, architecture: process.arch, scenarios: [], screenshots: [] }
 const note = (name, detail = true) => {
@@ -75,7 +76,7 @@ try {
       WEBVIEW2_USER_DATA_FOLDER: join(root, 'webview'),
       WEBVIEW2_BROWSER_EXECUTABLE_FOLDER: process.env.HMP_WEBVIEW2_RUNTIME,
       HMP_WINDOWS_QUALIFICATION: root,
-      HMP_WINDOWS_QUALIFICATION_DESTINATION: destination,
+      HMP_WINDOWS_QUALIFICATION_DESTINATION: defaultDestination,
       HMP_WINDOWS_QUALIFICATION_EXTRA_FOLDERS: [
         ...(process.env.HMP_QA_NTFS_VOLUMES ?? '').split(';').filter(Boolean).map(volume => join(volume, 'HMP Régie test')),
         process.env.HMP_QA_EXFAT_VOLUME,
@@ -241,17 +242,13 @@ try {
     assert.ok(preferences.destination.toLowerCase().endsWith(folder.toLowerCase()))
     note('Native picker accepted an additional NTFS drive', folder)
   }
-  if (process.env.HMP_QA_EXFAT_VOLUME) {
-    const previous = await evaluate("document.querySelector('.destination-path').textContent")
-    await selectFolder(process.env.HMP_QA_EXFAT_VOLUME)
-    await dom("document.querySelector('.field-label [role=alert]')?.innerText.includes('Ce volume ne permet pas la publication sans écrasement par lien physique')")
-    await shot('00-destination-exfat-refusee')
-    await dom(selectedPathIs(previous))
-    note('Native picker reports an incompatible volume and preserves the selected destination', process.env.HMP_QA_EXFAT_VOLUME)
-  }
-  if (process.env.HMP_QA_NTFS_VOLUMES || process.env.HMP_QA_EXFAT_VOLUME) {
+  if (process.env.HMP_QA_EXFAT_VOLUME || process.env.HMP_QA_NTFS_VOLUMES) {
     await selectFolder(destination)
     await dom(selectedPathIs(destination))
+    if (process.env.HMP_QA_EXFAT_VOLUME) {
+      await shot('00-destination-exfat')
+      note('Native picker accepted the exFAT test destination', destination)
+    }
   }
   const shaOption = "[aria-label='Destination et options'] select"
   await evaluate(`(() => {
@@ -273,7 +270,7 @@ try {
   await click(button('Démarrer / reprendre le lot'))
   await dom("[...document.querySelectorAll('.queue-table tbody tr')].filter(row => row.innerText.includes('Vérifié')).length === 2")
   for (const name of [first, long]) assert.deepEqual(await readFile(join(destination, name)), files[name])
-  note('Two verified files match their original bytes on the selected NTFS destination')
+  note('Two verified files match their original bytes on the selected destination')
   await navigate('Transferts')
   await shot('02-transferts')
   await navigate('Rapports')

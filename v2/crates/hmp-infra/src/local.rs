@@ -15,6 +15,9 @@ use std::{
 };
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
 
+#[cfg(windows)]
+mod windows;
+
 pub struct LocalDestination {
     path: PathBuf,
     root: Arc<Dir>,
@@ -84,6 +87,7 @@ fn metadata(dir: &Dir, name: &str) -> io::Result<Option<Metadata>> {
     }
 }
 
+#[cfg(not(windows))]
 fn no_replace(source: &Dir, partial: &str, target: &Dir, name: &str) -> io::Result<()> {
     #[cfg(any(target_os = "macos", target_os = "linux"))]
     {
@@ -104,17 +108,47 @@ fn no_replace(source: &Dir, partial: &str, target: &Dir, name: &str) -> io::Resu
     }
     #[cfg(not(any(target_os = "macos", target_os = "linux")))]
     {
-        source.hard_link(partial, target, name).map_err(|error| {
-            // ERROR_INVALID_FUNCTION and ERROR_NOT_SUPPORTED are returned by volumes without hard links.
-            #[cfg(windows)]
-            if matches!(error.raw_os_error(), Some(1 | 50)) {
-                return io::ErrorKind::Unsupported.into();
-            }
-            error
-        })?;
+        source.hard_link(partial, target, name)?;
         // The final entry has been published. Cleanup cannot undo that publication.
         let _ = source.remove_file(partial);
         Ok(())
+    }
+}
+
+#[cfg(not(windows))]
+fn probe(stage: &Dir) -> io::Result<()> {
+    let result = (|| {
+        let create = |name, bytes: &[u8]| {
+            stage
+                .open_with(name, OpenOptions::new().write(true).create_new(true))?
+                .write_all(bytes)
+        };
+        create("probe", b"source")?;
+        create("probe-final", b"existing")?;
+        expect_collision(no_replace(stage, "probe", stage, "probe-final"))?;
+        if stage.read("probe")? != b"source" || stage.read("probe-final")? != b"existing" {
+            return Err(io::ErrorKind::Unsupported.into());
+        }
+        stage.remove_file("probe-final")?;
+        no_replace(stage, "probe", stage, "probe-final")?;
+        if stage.read("probe-final")? != b"source" {
+            return Err(io::ErrorKind::Unsupported.into());
+        }
+        Ok(())
+    })();
+    let _ = stage.remove_file("probe");
+    let _ = stage.remove_file("probe-final");
+    result
+}
+
+fn expect_collision(result: io::Result<()>) -> io::Result<()> {
+    match result {
+        Err(error) if error.kind() == io::ErrorKind::AlreadyExists => Ok(()),
+        Err(error) => Err(error),
+        Ok(()) => Err(io::Error::new(
+            io::ErrorKind::Unsupported,
+            "Le volume a autorisé un remplacement",
+        )),
     }
 }
 
@@ -166,51 +200,16 @@ impl LocalDestination {
         root.create_dir_with(&stage_name, &builder)?;
         let staged = (|| {
             let stage = root.open_dir(&stage_name)?;
-            // Exercise both outcomes using only names in the private staging directory.
-            let published = (|| {
-                let create = |name, bytes: &[u8]| {
-                    stage
-                        .open_with(name, OpenOptions::new().write(true).create_new(true))?
-                        .write_all(bytes)
-                };
-                create("probe", b"source")?;
-                create("probe-final", b"existing")?;
-                let conflict = match no_replace(&stage, "probe", &stage, "probe-final") {
-                    Err(error) => error,
-                    Ok(()) => {
-                        return Err(io::Error::new(
-                            io::ErrorKind::Unsupported,
-                            "Le volume a autorisé un remplacement",
-                        ));
-                    }
-                };
-                if conflict.kind() != io::ErrorKind::AlreadyExists {
-                    return Err(conflict);
-                }
-                if stage.read("probe")? != b"source" || stage.read("probe-final")? != b"existing" {
-                    return Err(io::Error::new(
-                        io::ErrorKind::Unsupported,
-                        "Le volume ne protège pas une destination existante",
-                    ));
-                }
-                stage.remove_file("probe-final")?;
-                no_replace(&stage, "probe", &stage, "probe-final")?;
-                if stage.read("probe-final")? != b"source" {
-                    return Err(io::Error::new(
-                        io::ErrorKind::Unsupported,
-                        "La sonde de publication est incohérente",
-                    ));
-                }
-                Ok(())
-            })();
-            let _ = stage.remove_file("probe");
-            let _ = stage.remove_file("probe-final");
+            #[cfg(windows)]
+            let published = windows::probe(&stage, &root);
+            #[cfg(not(windows))]
+            let published = probe(&stage);
             published.map_err(|error| {
                 if error.kind() != io::ErrorKind::Unsupported {
                     return error;
                 }
                 #[cfg(windows)]
-                let message = "Ce volume ne permet pas la publication sans écrasement par lien physique. Choisissez un dossier accessible sur un volume compatible (par exemple NTFS).";
+                let message = "Ce volume ne permet pas le renommage sécurisé sans écrasement. Choisissez un dossier accessible sur un volume compatible (par exemple NTFS).";
                 #[cfg(not(windows))]
                 let message = "Ce volume ne permet pas la publication atomique sans écrasement.";
                 io::Error::new(error.kind(), format!("{message} ({error})"))
@@ -436,10 +435,11 @@ impl DestinationPort for LocalDestination {
         let stage = self.stage.clone();
         let name = reservation.partial_name.clone();
         let file = blocking(Phase::Copying, move || {
-            stage.open_with(
-                name,
-                OpenOptions::new().read(true).write(true).create_new(true),
-            )
+            let mut options = OpenOptions::new();
+            options.read(true).write(true).create_new(true);
+            #[cfg(windows)]
+            windows::enable_rename(&mut options);
+            stage.open_with(name, &options)
         })
         .await?;
         let writer = file.try_clone().map_err(|e| disk(e, Phase::Copying))?;
@@ -533,6 +533,9 @@ impl DestinationPort for LocalDestination {
                     .rename(partial, &self.root, name)
                     .map_err(|e| disk(e, phase))?;
             } else {
+                #[cfg(windows)]
+                windows::publish(opened, &self.root, name).map_err(|e| disk(e, phase))?;
+                #[cfg(not(windows))]
                 no_replace(&self.stage, partial, &self.root, name).map_err(|e| disk(e, phase))?;
             }
             Ok(self.path.join(name).to_string_lossy().into_owned())
