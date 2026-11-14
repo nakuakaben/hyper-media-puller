@@ -1,7 +1,6 @@
 param(
   [Parameter(Mandatory)][int]$AppProcess,
-  [Parameter(Mandatory)][ValidateSet('folder', 'resize', 'close')][string]$Action,
-  [string]$FolderPath
+  [Parameter(Mandatory)][ValidateSet('folder', 'resize', 'close')][string]$Action
 )
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
@@ -73,16 +72,6 @@ if ($Action -eq 'folder') {
     throw ("Native folder picker not found. Visible app windows: " + [Native]::Windows($AppProcess))
   }
   $dialog = $automation::FromHandle($handle)
-  if ($FolderPath) {
-    $edit = [System.Windows.Automation.PropertyCondition]::new($property::ControlTypeProperty, [System.Windows.Automation.ControlType]::Edit)
-    $edits = @($dialog.FindAll($scope::Descendants, $edit) | Where-Object {
-      !$_.Current.IsOffscreen -and $_.Current.IsEnabled -and $_.Current.BoundingRectangle.Height -gt 0
-    })
-    # The folder name edit is at the bottom; address and search edits sit at the top.
-    $fileName = $edits | Sort-Object { $_.Current.BoundingRectangle.Top } -Descending | Select-Object -First 1
-    if (!$fileName) { throw 'Native folder name edit not found' }
-    $fileName.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue($FolderPath)
-  }
   $buttonType = [System.Windows.Automation.PropertyCondition]::new($property::ControlTypeProperty, [System.Windows.Automation.ControlType]::Button)
   $confirmId = [System.Windows.Automation.PropertyCondition]::new($property::AutomationIdProperty, '1')
   $confirmName = [System.Windows.Automation.PropertyCondition]::new($property::NameProperty, 'Select Folder')

@@ -76,6 +76,10 @@ try {
       WEBVIEW2_BROWSER_EXECUTABLE_FOLDER: process.env.HMP_WEBVIEW2_RUNTIME,
       HMP_WINDOWS_QUALIFICATION: root,
       HMP_WINDOWS_QUALIFICATION_DESTINATION: destination,
+      HMP_WINDOWS_QUALIFICATION_EXTRA_FOLDERS: [
+        ...(process.env.HMP_QA_NTFS_VOLUMES ?? '').split(';').filter(Boolean).map(volume => join(volume, 'HMP Régie test')),
+        process.env.HMP_QA_EXFAT_VOLUME,
+      ].filter(Boolean).join(';'),
     },
     windowsHide: false,
   })
@@ -121,9 +125,8 @@ try {
     await click(`[...document.querySelectorAll('nav button')].find(b => b.textContent.trim() === ${JSON.stringify(name)})`)
     await expectBreadcrumb(name)
   }
-  async function native(action, folderPath) {
+  async function native(action) {
     const args = ['-NoProfile', '-NonInteractive', '-Sta', '-ExecutionPolicy', 'Bypass', '-File', windowHelper, '-AppProcess', String(app.pid), '-Action', action]
-    if (folderPath) args.push('-FolderPath', folderPath)
     const result = await execute('powershell.exe', args, { timeout: 26000, windowsHide: true })
     return result.stdout.trim()
   }
@@ -222,8 +225,10 @@ try {
   assert.ok(displayedPath.includes('Régie extérieure'))
   note('Windows destination shown as a readable drive path')
   async function selectFolder(path) {
+    await writeFile(join(root, 'picker-location.txt'), path)
     await click(button('Choisir un dossier'))
-    await native('folder', path)
+    await native('folder')
+    await rm(join(root, 'picker-location.txt'))
   }
   const selectedPathIs = path => `document.querySelector('.destination-path').textContent.toLowerCase() === ${JSON.stringify(path.toLowerCase())}`
   for (const volume of (process.env.HMP_QA_NTFS_VOLUMES ?? '').split(';').filter(Boolean)) {
@@ -231,6 +236,7 @@ try {
     await mkdir(folder)
     await selectFolder(folder)
     await dom(selectedPathIs(folder))
+    await shot("00-destination-" + folder[0].toUpperCase())
     const preferences = JSON.parse(await readFile(join(root, 'profile', 'offload-settings-v1.json'), 'utf8'))
     assert.ok(preferences.destination.toLowerCase().endsWith(folder.toLowerCase()))
     note('Native picker accepted an additional NTFS drive', folder)
@@ -238,7 +244,8 @@ try {
   if (process.env.HMP_QA_EXFAT_VOLUME) {
     const previous = await evaluate("document.querySelector('.destination-path').textContent")
     await selectFolder(process.env.HMP_QA_EXFAT_VOLUME)
-    await dom(bodyContains('Ce volume ne permet pas la publication sans écrasement par lien physique'))
+    await dom("document.querySelector('.field-label [role=alert]')?.innerText.includes('Ce volume ne permet pas la publication sans écrasement par lien physique')")
+    await shot('00-destination-exfat-refusee')
     await dom(selectedPathIs(previous))
     note('Native picker reports an incompatible volume and preserves the selected destination', process.env.HMP_QA_EXFAT_VOLUME)
   }
