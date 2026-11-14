@@ -1,6 +1,6 @@
 {
   "identifier": "preview",
-  "description": "HMP V2 native destination selection, read-only FTP and transfer queue.",
+  "description": "HMP V2 local HyperDeck discovery, native destination selection, read-only FTP and transfer queue.",
   "windows": [
     "main"
   ],
@@ -12,6 +12,11 @@
     "allow-edit-recorders",
     "allow-equipment-json",
     "allow-list-media",
+    "allow-network-interfaces",
+    "allow-start-network-scan",
+    "allow-network-scan-progress",
+    "allow-cancel-network-scan",
+    "allow-add-network-recorder",
     "allow-transfer-settings",
     "allow-choose-destination",
     "allow-save-transfer-options",

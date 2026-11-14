@@ -1,13 +1,14 @@
 param(
-  [Parameter(Mandatory)][string]$Probe,
-  [Parameter(Mandatory)][string]$Evidence
+  [string]$Probe,
+  [Parameter(Mandatory)][string]$Evidence,
+  [switch]$Picker
 )
 $ErrorActionPreference = 'Stop'
 if ($env:GITHUB_ACTIONS -ne 'true') { throw 'Use an isolated Windows runner' }
 $root = Join-Path $env:RUNNER_TEMP ('hmp-vhd-' + [Guid]::NewGuid().ToString('N'))
 $null = New-Item -ItemType Directory -Path $root
 $null = New-Item -ItemType Directory -Force -Path $Evidence
-$Probe = (Resolve-Path $Probe).Path
+if (!$Picker) { $Probe = (Resolve-Path $Probe).Path }
 $Evidence = (Resolve-Path $Evidence).Path
 $checks = [ordered]@{}
 
@@ -47,6 +48,39 @@ function Invoke-Probe([string]$Mode, [string]$Path) {
   return $output.Trim()
 }
 
+if ($Picker) {
+  $images = @(
+    (Join-Path $root 'picker-first.vhd')
+    (Join-Path $root 'picker-second.vhd')
+    (Join-Path $root 'picker-exfat.vhd')
+  )
+  $systemVolume = Join-Path ([Environment]::GetFolderPath('CommonApplicationData')) ('hmp-picker-' + [Guid]::NewGuid().ToString('N'))
+  try {
+    New-Item -ItemType Directory -Path $systemVolume | Out-Null
+    $first = New-TestVolume $images[0] NTFS 'HMPQA1'
+    $second = New-TestVolume $images[1] NTFS 'HMPQA2'
+    $env:HMP_QA_NTFS_VOLUMES = "$systemVolume;$first;$second"
+    try {
+      $exfat = New-TestVolume $images[2] exFAT 'HMPQAEX'
+      $folder = Join-Path $exfat 'HMP Régie exFAT'
+      New-Item -ItemType Directory -Path $folder | Out-Null
+      $env:HMP_QA_EXFAT_VOLUME = $folder
+    } catch {
+      $checks.exfat_unavailable = $_.Exception.Message
+    }
+    $checks.ntfs = @($systemVolume, $first, $second)
+    $checks.exfat = $env:HMP_QA_EXFAT_VOLUME
+    node qualification/windows-webview2.mjs src-tauri/target/debug/hmp-v2-preview.exe $Evidence
+    if ($LASTEXITCODE -ne 0) { throw 'Native WebView2 destination qualification failed' }
+  } finally {
+    $checks | ConvertTo-Json | Set-Content (Join-Path $Evidence 'picker-volumes.json') -Encoding utf8
+    foreach ($image in $images) { Remove-TestImage $image }
+    if (Test-Path -LiteralPath $systemVolume) { Remove-Item -LiteralPath $systemVolume -Recurse -Force }
+    Remove-Item -LiteralPath $root -Recurse -Force
+  }
+  return
+}
+
 $fullImage = Join-Path $root 'full.vhd'
 $removeImage = Join-Path $root 'remove.vhd'
 $exfatImage = Join-Path $root 'exfat.vhd'
@@ -55,10 +89,16 @@ try {
   $checks.ntfs_full = Invoke-Probe full $full
   Remove-TestImage $fullImage
 
-  $exfat = $null
-  try { $exfat = New-TestVolume $exfatImage exFAT 'HMPEXFAT' }
-  catch { $checks.exfat_unavailable = $_.Exception.Message }
-  if ($exfat) { $checks.exfat = Invoke-Probe exfat $exfat }
+  $exfat = New-TestVolume $exfatImage exFAT 'HMPEXFAT'
+  $env:HMP_TEST_VOLUME = $exfat
+  try {
+    cargo test --locked -p hmp-infra --test local_destination
+    if ($LASTEXITCODE -ne 0) { throw 'exFAT publication regression' }
+    $checks.exfat_publication = "$exfat collision, explicit overwrite, late collision and replaced partial validated"
+  } finally {
+    Remove-Item Env:HMP_TEST_VOLUME
+  }
+  $checks.exfat_full = Invoke-Probe full $exfat
   Remove-TestImage $exfatImage
 
   $removal = New-TestVolume $removeImage NTFS 'HMPREMOVE'

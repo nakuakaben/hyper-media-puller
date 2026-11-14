@@ -25,9 +25,9 @@ export function Options({ values, onChange }: { values: Preferences; onChange: (
   </>
 }
 
-export function Destination({ demo, values, onChange, onChoose, available, busy }: {
+export function Destination({ demo, values, onChange, onChoose, available, busy, destinationError }: {
   demo: boolean; values: Preferences; onChange: (p: Preferences) => void
-  onChoose: () => void; available?: string; busy?: boolean
+  onChoose: () => void; available?: string; busy?: boolean; destinationError?: string
 }) {
   if (demo) return <label className="field-label">Dossier destination
     <div className="input-icon"><FolderOpen size={15} aria-hidden="true" />
@@ -39,14 +39,15 @@ export function Destination({ demo, values, onChange, onChoose, available, busy 
     <span>Dossier destination</span>
     <div className="destination-path mono break-path">{displayLocalPath(values.destination) || 'Aucun dossier choisi'}</div>
     {available && <span>{available} disponibles</span>}
+    {destinationError && <div className="callout error break-path" role="alert">{destinationError}</div>}
     <button disabled={busy} onClick={onChoose}><FolderOpen size={15} />Choisir un dossier</button>
   </div>
 }
 
-export function Settings({ demo, native, info, values, onChange, onConnect, onReset, onComponents, onChoose, available, busy, onSave, saved, canConnect, equipmentPanel }: {
+export function Settings({ demo, native, info, values, onChange, onConnect, onReset, onComponents, onChoose, available, busy, destinationError, onSave, saved, canConnect, equipmentPanel }: {
   demo: boolean; native: boolean; info?: PreviewInfo; values: Preferences; onChange: (p: Preferences) => void
   onConnect: () => void; onReset: () => void; onComponents: () => void
-  onChoose: () => void; available?: string; busy: boolean; onSave: () => void; saved: boolean
+  onChoose: () => void; available?: string; busy: boolean; destinationError?: string; onSave: () => void; saved: boolean
   canConnect: boolean; equipmentPanel: ReactNode
 }) {
   return <div className="settings-grid">
@@ -56,7 +57,7 @@ export function Settings({ demo, native, info, values, onChange, onConnect, onRe
       <button disabled={demo || !native || !canConnect} onClick={onConnect}>Identifier un HyperDeck</button>
     </div></Panel>
     <Panel title="Destination" icon={Database}><div className="panel-body stack">
-      <Destination demo={demo} values={values} onChange={onChange} onChoose={onChoose} available={available} busy={busy || !native} />
+      <Destination demo={demo} values={values} onChange={onChange} onChoose={onChoose} available={available} busy={busy || !native} destinationError={destinationError} />
       <p>{demo ? 'Chemin d’exemple, sans accès au disque.' : 'Le dossier choisi devient la destination par défaut des prochains lots.'}</p>
     </div></Panel>
     <Panel title="Préférences de transfert" icon={SlidersHorizontal}><div className="panel-body stack">

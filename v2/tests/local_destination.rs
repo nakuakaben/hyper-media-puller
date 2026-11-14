@@ -168,7 +168,7 @@ async fn destination_permission_and_symlink_checks() {
 #[tokio::test]
 async fn destination_denies_subdirectory_creation_by_ntfs_acl() {
     use std::process::Command;
-    let folder = workspace();
+    let folder = tempfile::tempdir().unwrap();
     let protected = folder.path().join("restricted");
     fs::create_dir(&protected).unwrap();
     let account = Command::new("whoami.exe").output().unwrap();

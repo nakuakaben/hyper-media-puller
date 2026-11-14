@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use hmp_contract::{ErrorDto, MediaEntryDto, SCHEMA_VERSION};
+mod network_scan;
 mod offload;
 mod recorders;
 #[cfg(all(windows, feature = "windows-qualification"))]
@@ -76,10 +77,19 @@ async fn choose_destination(
         .file()
         .set_title("Choisir une destination HMP V2")
         .set_parent(&window);
-    #[cfg(all(windows, feature = "windows-qualification"))]
-    let dialog = match windows_qualification::starting_directory() {
-        Some(path) => dialog.set_directory(path),
-        None => dialog,
+    #[cfg(windows)]
+    let dialog = {
+        #[cfg(feature = "windows-qualification")]
+        let start = windows_qualification::starting_directory();
+        #[cfg(not(feature = "windows-qualification"))]
+        let start: Option<std::path::PathBuf> = None;
+
+        // Resolve the default through Windows, without assuming a system drive.
+        // The native picker remains free to browse This PC and other volumes.
+        match start.or_else(|| window.path().home_dir().ok()) {
+            Some(path) => dialog.set_directory(path),
+            None => dialog,
+        }
     };
     dialog.pick_folder(move |folder| {
         let _ = tx.send(folder);
@@ -90,9 +100,11 @@ async fn choose_destination(
     let Some(folder) = selected else {
         return Ok(None);
     };
-    let path = folder
-        .into_path()
-        .map_err(|_| public_error(TransferError::invalid("Dossier local requis")))?;
+    let path = folder.into_path().map_err(|_| {
+        public_error(TransferError::invalid(
+            "Sélectionnez un dossier du système de fichiers",
+        ))
+    })?;
     state.select(path).await.map(Some).map_err(public_error)
 }
 
@@ -170,6 +182,7 @@ fn context<R: tauri::Runtime>() -> tauri::Context<R> {
 fn main() {
     let stopping = Arc::new(AtomicU8::new(0));
     let app = tauri::Builder::default()
+        .manage(network_scan::NetworkScan::default())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let profile = app.path().app_data_dir()?;
@@ -200,6 +213,11 @@ fn main() {
             edit_recorders,
             equipment_json,
             list_media,
+            network_scan::network_interfaces,
+            network_scan::start_network_scan,
+            network_scan::network_scan_progress,
+            network_scan::cancel_network_scan,
+            network_scan::add_network_recorder,
             transfer_settings,
             choose_destination,
             save_transfer_options,

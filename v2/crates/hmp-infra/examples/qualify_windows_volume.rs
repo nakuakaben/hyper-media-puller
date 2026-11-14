@@ -15,18 +15,9 @@ async fn main() {
     let root = PathBuf::from(args.next().expect("disposable VHD root"));
     let folder = root.join("hmp-qualification");
     std::fs::create_dir(&folder).unwrap();
-    let selected = LocalDestination::open(folder.clone()).await;
-    if mode == "exfat" {
-        let error = selected
-            .err()
-            .expect("exFAT unexpectedly supports this publication");
-        assert_eq!(error.phase, hmp_domain::Phase::Planning);
-        assert_eq!(std::fs::read_dir(folder).unwrap().count(), 0);
-        println!("exFAT destination rejected before writing a media file: {error}");
-        return;
-    }
     assert!(matches!(mode.as_str(), "full" | "remove"));
-    let disk = selected.unwrap();
+    let disk = LocalDestination::open(folder).await.unwrap();
+    let folder = disk.path().to_owned();
     let free = disk.available_space().await.unwrap();
     assert!(
         free > 0 && free <= 128 * 1024 * 1024,

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { spawn, execFile } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { mkdir, mkdtemp, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, readdir, realpath, rename, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { promisify } from 'node:util'
@@ -54,9 +54,10 @@ function embeddedWebView(root) {
   }
 }
 
-const root = await mkdtemp(join(tmpdir(), 'hmp-win-qa-'))
-const destination = join(root, 'Régie extérieure ' + 'session '.repeat(9).trimEnd())
-await mkdir(destination)
+const root = await realpath(await mkdtemp(join(tmpdir(), 'hmp-win-qa-')))
+const defaultDestination = join(root, 'Régie extérieure ' + 'session '.repeat(9).trimEnd())
+await mkdir(defaultDestination)
+const destination = process.env.HMP_QA_EXFAT_VOLUME || defaultDestination
 await mkdir(join(root, 'profile'))
 const report = { schema_version: 1, architecture: process.arch, scenarios: [], screenshots: [] }
 const note = (name, detail = true) => {
@@ -75,7 +76,11 @@ try {
       WEBVIEW2_USER_DATA_FOLDER: join(root, 'webview'),
       WEBVIEW2_BROWSER_EXECUTABLE_FOLDER: process.env.HMP_WEBVIEW2_RUNTIME,
       HMP_WINDOWS_QUALIFICATION: root,
-      HMP_WINDOWS_QUALIFICATION_DESTINATION: destination,
+      HMP_WINDOWS_QUALIFICATION_DESTINATION: defaultDestination,
+      HMP_WINDOWS_QUALIFICATION_EXTRA_FOLDERS: [
+        ...(process.env.HMP_QA_NTFS_VOLUMES ?? '').split(';').filter(Boolean).map(volume => join(volume, 'HMP Régie test')),
+        process.env.HMP_QA_EXFAT_VOLUME,
+      ].filter(Boolean).join(';'),
     },
     windowsHide: false,
   })
@@ -138,13 +143,17 @@ try {
 
   await dom(bodyContains('Mode réel'))
   await expectBreadcrumb('Médias')
-  if (internal) {
-    await click(button('Ouvrir la démonstration'))
-    await dom("document.querySelectorAll('.device-icon img').length === 4 && [...document.querySelectorAll('.device-icon img')].every(img => img.complete && img.naturalWidth > 0)")
-    await click(button('Quitter la démonstration'))
-    await dom(bodyContains('Mode réel'))
-    note('All four internal model images load in WebView2')
-  }
+  await click(button('Ouvrir la démonstration'))
+  await dom(`(() => {
+    const illustrations = [...document.querySelectorAll('.device-icon img')];
+    return illustrations.length === 4 && new Set(illustrations.map(img => img.src)).size === 4
+      && illustrations.every(img => img.complete && img.naturalWidth > 0)
+      && document.querySelectorAll('.device-icon svg').length === 1;
+  })()`)
+  await shot('00-vignettes-standard')
+  await click(button('Quitter la démonstration'))
+  await dom(bodyContains('Mode réel'))
+  note('Four original thumbnails and generic fallback')
   const agent = await evaluate('navigator.userAgent')
   report.webview2 = { runtime: process.env.HMP_WEBVIEW2_VERSION, agent }
   assert.match(agent, /Chrome\//)
@@ -165,14 +174,56 @@ try {
   assert.match(font, /Inter Variable/)
   assert.deepEqual(tokens, { background: '#09090b', panel: '#18181b', border: '#27272a', selection: '#1177d7', navigation: 44, status: 28 })
   note('RWA 0.8.1 palette, typography and bars match the native renderer')
+  const invoke = async (command, args = {}) => {
+    const response = await send('Runtime.evaluate', {
+      expression: `window.__TAURI_INTERNALS__.invoke(${JSON.stringify(command)}, ${JSON.stringify(args)})
+        .then(value => ({ value }), error => ({ error }))`,
+      awaitPromise: true,
+      returnByValue: true,
+    })
+    return response.result.value
+  }
+  await click(element('[aria-label="Rechercher des HyperDeck"]'))
+  await dom("document.querySelector('dialog select')?.options[0]?.value === '0'")
+  await dom("document.querySelector('dialog input')?.value.includes('/')")
+  await press('Escape', 27)
+  await dom("!document.querySelector('dialog[open]')")
+  const interfaces = (await invoke('network_interfaces')).value
+  assert.ok(interfaces.length > 0)
+  const { name, address } = interfaces[0]
+  // Invalid CIDR reaches the backend without sending a probe on the runner network.
+  const { value: scanId } = await invoke('start_network_scan', { name, address, cidr: 'invalid' })
+  assert.match(scanId, /^[0-9a-f-]{36}$/)
+  assert.equal(typeof (await invoke('network_scan_progress', { id: scanId })).value.finished, 'boolean')
+  assert.ok(!Object.hasOwn(await invoke('cancel_network_scan', { id: scanId }), 'error'))
+  assert.deepEqual(
+    Object.fromEntries(Object.entries((await invoke('add_network_recorder', { id: scanId, address })).error)
+      .filter(([key]) => ['code', 'message'].includes(key))),
+    { code: 'invalid_input', message: 'HyperDeck à confirmer' },
+  )
+  note('Discovery dialog and all five commands passed the native WebView2 ACL')
+
   const originalWidth = await evaluate('innerWidth')
   note('Native window resize', await native('resize'))
   await dom(`innerWidth !== ${originalWidth}`)
   const connect = '[aria-label="Identifier un HyperDeck"]'
-  await click(element(connect))
+  await click(element('[aria-label="Rechercher des HyperDeck"]'))
+  await dom(`[...document.querySelectorAll('dialog select option')].some(option => option.textContent.includes(${JSON.stringify(fixture.host)}))`)
+  await evaluate(`(() => {
+    const select = document.querySelector('dialog select');
+    select.value = [...select.options].find(option => option.textContent.includes(${JSON.stringify(fixture.host)})).value;
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+  })()`)
   await click(element('dialog input'))
-  await send('Input.insertText', { text: fixture.host })
-  await click(button('Identifier'))
+  await evaluate("document.querySelector('dialog input').select()")
+  await send('Input.insertText', { text: fixture.host + '/32' })
+  await click(button('Lancer la recherche'))
+  await dom(bodyContains('HyperDeck confirmé · FTP disponible'))
+  await click(button('Ajouter'))
+  await dom(bodyContains('Déjà enregistré'))
+  await press('Escape', 27)
+  await dom("!document.querySelector('dialog[open]')")
+  note('A real TCP scan and FTP probe found the fixture; the user action added it')
   await click(button('sd2'))
   await dom(bodyContains('clip principal.mov'))
   note('HyperDeck identification and FTP navigation through /sd2')
@@ -216,6 +267,31 @@ try {
   assert.match(displayedPath, /^[a-z]:\\/i)
   assert.ok(displayedPath.includes('Régie extérieure'))
   note('Windows destination shown as a readable drive path')
+  async function selectFolder(path) {
+    await writeFile(join(root, 'picker-location.txt'), path)
+    await click(button('Choisir un dossier'))
+    await native('folder')
+    await rm(join(root, 'picker-location.txt'))
+  }
+  const selectedPathIs = path => `document.querySelector('.destination-path').textContent.toLowerCase() === ${JSON.stringify(path.toLowerCase())}`
+  for (const volume of (process.env.HMP_QA_NTFS_VOLUMES ?? '').split(';').filter(Boolean)) {
+    const folder = join(volume, 'HMP Régie test')
+    await mkdir(folder)
+    await selectFolder(folder)
+    await dom(selectedPathIs(folder))
+    await shot("00-destination-" + folder[0].toUpperCase())
+    const preferences = JSON.parse(await readFile(join(root, 'profile', 'offload-settings-v1.json'), 'utf8'))
+    assert.ok(preferences.destination.toLowerCase().endsWith(folder.toLowerCase()))
+    note('Native picker accepted an additional NTFS drive', folder)
+  }
+  if (process.env.HMP_QA_EXFAT_VOLUME || process.env.HMP_QA_NTFS_VOLUMES) {
+    await selectFolder(destination)
+    await dom(selectedPathIs(destination))
+    if (process.env.HMP_QA_EXFAT_VOLUME) {
+      await shot('00-destination-exfat')
+      note('Native picker accepted the exFAT test destination', destination)
+    }
+  }
   const shaOption = "[aria-label='Destination et options'] select"
   await evaluate(`(() => {
     const select = [...document.querySelectorAll(${JSON.stringify(shaOption)})].at(-1);
@@ -233,10 +309,14 @@ try {
   await media(long)
   await showOptions()
   await click(button('Ajouter à la file'))
+  await expectBreadcrumb('Médias')
+  await dom(bodyContains('2 médias ajoutés à la file'))
+  await dom("document.querySelectorAll('.queue-table tbody tr').length === 2")
+  await click(button('Ouvrir les transferts'))
   await click(button('Démarrer / reprendre le lot'))
   await dom("[...document.querySelectorAll('.queue-table tbody tr')].filter(row => row.innerText.includes('Vérifié')).length === 2")
   for (const name of [first, long]) assert.deepEqual(await readFile(join(destination, name)), files[name])
-  note('Two verified files match their original bytes on the selected NTFS destination')
+  note('Two verified files match their original bytes on the selected destination')
   await navigate('Transferts')
   await shot('02-transferts')
   await navigate('Rapports')
@@ -273,6 +353,9 @@ try {
     await media(name)
     await showOptions()
     await click(button('Ajouter à la file'))
+    await expectBreadcrumb('Médias')
+    await dom(bodyContains('1 média ajouté à la file'))
+    await click(button('Ouvrir les transferts'))
     await click(button('Démarrer / reprendre le lot'))
   }
   const row = name => `[...document.querySelectorAll('.queue-table tbody tr')].find(row => row.innerText.includes(${JSON.stringify(name)}))`

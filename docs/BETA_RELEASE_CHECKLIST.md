@@ -11,7 +11,7 @@ Décision actuelle **NO-GO publication**. [Procédure et résultats d’acceptat
 - [x] **IMPORTANT** Exclure les visuels historiques de provenance incertaine de la candidate V2. Embarquer les licences HMP, Inter, Lucide et RWA. [Provenance](BETA_RELEASE_NOTES.md)
 - [x] **IMPORTANT** Identifier les dépendances Rust par cible, les modules frontend et le contenu du NSIS.
 - [x] **IMPORTANT** Joindre les notices tierces au dossier de remise, avec l’archive source MPL et les notices NSIS.
-- [ ] **BLOCKER** Vérifier que le canal final remet les notices avec chaque téléchargement. Les droits des visuels historiques restent à établir avant leur réintégration.
+- [ ] **BLOCKER** Vérifier que le canal final remet les notices avec chaque téléchargement. Les photos historiques sont exclues des variantes V2.
 - [x] **IMPORTANT** Aligner les métadonnées Rust, Tauri et npm sur `0.1.0-beta.1`. Conserver l’identifiant et le schéma de préférences Preview.
 - [ ] **BLOCKER** Tester l’installation sur un profil Preview existant et la progression entre deux candidates.
 - [x] **IMPORTANT** Relancer npm audit, OSV et Gitleaks, et documenter les avis et exclusions par cible.
@@ -35,6 +35,8 @@ Décision actuelle **NO-GO publication**. [Procédure et résultats d’acceptat
 - [ ] **LATER** Étendre la qualification à SMB, au Studio Mini 2017, aux HyperDeck physiques sous Windows et aux autres scénarios matériels annoncés dans l’audit.
 
 ## Contrôle des fichiers à distribuer
+
+- [ ] **BLOCKER** Vérifier les quatre miniatures MIT et le repère générique dans chaque installateur V2 standard et interne sur macOS et Windows. Les photos historiques sont exclues.
 
 - [ ] **BLOCKER** Vérifier les SHA-256 des candidats exacts depuis le canal de téléchargement final. Le manifeste de la remise locale couvre les configurations de test.
 - [ ] **BLOCKER** Vérifier le canal de téléchargement final sur les deux plateformes.

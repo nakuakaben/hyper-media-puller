@@ -39,7 +39,7 @@ try {
     }
     $installer = Join-Path $root $name
     Copy-Item $packages[0].FullName $installer
-    Copy-Item "$PSScriptRoot/windows-package-user.ps1" $root
+    Copy-Item "$PSScriptRoot/windows-package-user.ps1", "$PSScriptRoot/windows-discovery-acl.mjs" $root
     $password = ConvertTo-SecureString ("Hmp!4" + [guid]::NewGuid().ToString('N')) -AsPlainText -Force
     $user = New-LocalUser -Name $account -Password $password -Description 'Disposable HMP NSIS qualification'
     $users = Get-LocalGroup -SID 'S-1-5-32-545'
