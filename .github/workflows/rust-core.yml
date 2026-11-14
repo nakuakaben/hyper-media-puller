@@ -117,7 +117,8 @@ jobs:
         run: ./qualification/windows-runtime.ps1
       - name: Exercise the native Windows WebView2 offload
         if: runner.os == 'Windows'
-        run: node qualification/windows-webview2.mjs
+        shell: pwsh
+        run: ./qualification/windows-storage.ps1 -Picker -Evidence ./windows-qualification
       - name: Check the internal build in native Windows WebView2
         if: runner.os == 'Windows'
         shell: pwsh

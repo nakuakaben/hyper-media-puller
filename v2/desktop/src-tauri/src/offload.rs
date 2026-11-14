@@ -395,21 +395,34 @@ impl Offload {
         if let Some(root) = local.roots.get(&path) {
             return Ok(root.clone());
         }
-        let root = Arc::new(LocalDestination::open(path.clone()).await?);
+        let root = Arc::new(LocalDestination::open(path).await?);
         if let Some(existing) = local.roots.get(root.path()) {
             return Ok(existing.clone());
         }
-        local.roots.insert(path, root.clone());
         local.roots.insert(root.path().to_owned(), root.clone());
         Ok(root)
     }
 
     pub async fn select(&self, path: PathBuf) -> Result<SettingsView> {
         let mut local = self.local.lock().await;
-        let root = Self::root(&mut local, path).await?;
+        // An explicit selection must probe the current volume, including after
+        // disconnecting a drive and reusing its letter. Existing batches own their handle.
+        let root = LocalDestination::open(path.clone())
+            .await
+            .map_err(|mut error| {
+                error.message = format!(
+                    "{} · Dossier sélectionné : {}",
+                    error.message,
+                    path.display()
+                );
+                error
+            })?;
+        let root = Arc::new(root);
         let mut preferences = local.preferences.clone();
-        preferences.destination = Some(root.path().to_owned());
+        let canonical = root.path().to_owned();
+        preferences.destination = Some(canonical.clone());
         self.persist(preferences.clone()).await?;
+        local.roots.insert(canonical, root);
         local.preferences = preferences;
         Ok(Self::settings_locked(&local).await)
     }

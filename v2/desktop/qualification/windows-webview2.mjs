@@ -121,8 +121,9 @@ try {
     await click(`[...document.querySelectorAll('nav button')].find(b => b.textContent.trim() === ${JSON.stringify(name)})`)
     await expectBreadcrumb(name)
   }
-  async function native(action) {
+  async function native(action, folderPath) {
     const args = ['-NoProfile', '-NonInteractive', '-Sta', '-ExecutionPolicy', 'Bypass', '-File', windowHelper, '-AppProcess', String(app.pid), '-Action', action]
+    if (folderPath) args.push('-FolderPath', folderPath)
     const result = await execute('powershell.exe', args, { timeout: 26000, windowsHide: true })
     return result.stdout.trim()
   }
@@ -138,13 +139,17 @@ try {
 
   await dom(bodyContains('Mode réel'))
   await expectBreadcrumb('Médias')
-  if (internal) {
-    await click(button('Ouvrir la démonstration'))
-    await dom("document.querySelectorAll('.device-icon img').length === 4 && [...document.querySelectorAll('.device-icon img')].every(img => img.complete && img.naturalWidth > 0)")
-    await click(button('Quitter la démonstration'))
-    await dom(bodyContains('Mode réel'))
-    note('All four internal model images load in WebView2')
-  }
+  await click(button('Ouvrir la démonstration'))
+  await dom(`(() => {
+    const illustrations = [...document.querySelectorAll('.device-icon img')];
+    return illustrations.length === 4 && new Set(illustrations.map(img => img.src)).size === 4
+      && illustrations.every(img => img.complete && img.naturalWidth > 0)
+      && document.querySelectorAll('.device-icon svg').length === 1;
+  })()`)
+  await shot('00-vignettes-standard')
+  await click(button('Quitter la démonstration'))
+  await dom(bodyContains('Mode réel'))
+  note(internal ? 'Four internal photos and generic fallback' : 'Four original standard thumbnails and generic fallback')
   const agent = await evaluate('navigator.userAgent')
   report.webview2 = { runtime: process.env.HMP_WEBVIEW2_VERSION, agent }
   assert.match(agent, /Chrome\//)
@@ -216,6 +221,31 @@ try {
   assert.match(displayedPath, /^[a-z]:\\/i)
   assert.ok(displayedPath.includes('Régie extérieure'))
   note('Windows destination shown as a readable drive path')
+  async function selectFolder(path) {
+    await click(button('Choisir un dossier'))
+    await native('folder', path)
+  }
+  const selectedPathIs = path => `document.querySelector('.destination-path').textContent.toLowerCase() === ${JSON.stringify(path.toLowerCase())}`
+  for (const volume of (process.env.HMP_QA_NTFS_VOLUMES ?? '').split(';').filter(Boolean)) {
+    const folder = join(volume, 'HMP Régie test')
+    await mkdir(folder)
+    await selectFolder(folder)
+    await dom(selectedPathIs(folder))
+    const preferences = JSON.parse(await readFile(join(root, 'profile', 'offload-settings-v1.json'), 'utf8'))
+    assert.ok(preferences.destination.toLowerCase().endsWith(folder.toLowerCase()))
+    note('Native picker accepted an additional NTFS drive', folder)
+  }
+  if (process.env.HMP_QA_EXFAT_VOLUME) {
+    const previous = await evaluate("document.querySelector('.destination-path').textContent")
+    await selectFolder(process.env.HMP_QA_EXFAT_VOLUME)
+    await dom(bodyContains('Ce volume ne permet pas la publication sans écrasement par lien physique'))
+    await dom(selectedPathIs(previous))
+    note('Native picker reports an incompatible volume and preserves the selected destination', process.env.HMP_QA_EXFAT_VOLUME)
+  }
+  if (process.env.HMP_QA_NTFS_VOLUMES || process.env.HMP_QA_EXFAT_VOLUME) {
+    await selectFolder(destination)
+    await dom(selectedPathIs(destination))
+  }
   const shaOption = "[aria-label='Destination et options'] select"
   await evaluate(`(() => {
     const select = [...document.querySelectorAll(${JSON.stringify(shaOption)})].at(-1);

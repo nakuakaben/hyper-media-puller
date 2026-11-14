@@ -1,13 +1,14 @@
 param(
-  [Parameter(Mandatory)][string]$Probe,
-  [Parameter(Mandatory)][string]$Evidence
+  [string]$Probe,
+  [Parameter(Mandatory)][string]$Evidence,
+  [switch]$Picker
 )
 $ErrorActionPreference = 'Stop'
 if ($env:GITHUB_ACTIONS -ne 'true') { throw 'Use an isolated Windows runner' }
 $root = Join-Path $env:RUNNER_TEMP ('hmp-vhd-' + [Guid]::NewGuid().ToString('N'))
 $null = New-Item -ItemType Directory -Path $root
 $null = New-Item -ItemType Directory -Force -Path $Evidence
-$Probe = (Resolve-Path $Probe).Path
+if (!$Picker) { $Probe = (Resolve-Path $Probe).Path }
 $Evidence = (Resolve-Path $Evidence).Path
 $checks = [ordered]@{}
 
@@ -45,6 +46,39 @@ function Invoke-Probe([string]$Mode, [string]$Path) {
   $output = & $Probe $Mode $Path 2>&1 | Out-String
   if ($LASTEXITCODE -ne 0) { throw $output }
   return $output.Trim()
+}
+
+if ($Picker) {
+  $images = @(
+    (Join-Path $root 'picker-first.vhd')
+    (Join-Path $root 'picker-second.vhd')
+    (Join-Path $root 'picker-exfat.vhd')
+  )
+  try {
+    $first = New-TestVolume $images[0] NTFS 'HMPQA1'
+    $second = New-TestVolume $images[1] NTFS 'HMPQA2'
+    $env:HMP_QA_NTFS_VOLUMES = "$first;$second"
+    try {
+      $exfat = New-TestVolume $images[2] exFAT 'HMPQAEX'
+      $folder = Join-Path $exfat 'HMP Incompatible'
+      New-Item -ItemType Directory -Path $folder | Out-Null
+      $env:HMP_QA_EXFAT_VOLUME = $folder
+    } catch {
+      $checks.exfat_unavailable = $_.Exception.Message
+    }
+    $checks.ntfs = @($first, $second)
+    $checks.exfat = $env:HMP_QA_EXFAT_VOLUME
+    node qualification/windows-webview2.mjs src-tauri/target/debug/hmp-v2-preview.exe $Evidence
+    if ($LASTEXITCODE -ne 0) { throw 'Native WebView2 destination qualification failed' }
+    if ($env:HMP_QA_EXFAT_VOLUME -and @(Get-ChildItem -LiteralPath $env:HMP_QA_EXFAT_VOLUME -Force).Count) {
+      throw 'Unexpected files after refusing the exFAT destination'
+    }
+  } finally {
+    $checks | ConvertTo-Json | Set-Content (Join-Path $Evidence 'picker-volumes.json') -Encoding utf8
+    foreach ($image in $images) { Remove-TestImage $image }
+    Remove-Item -LiteralPath $root -Recurse -Force
+  }
+  return
 }
 
 $fullImage = Join-Path $root 'full.vhd'
