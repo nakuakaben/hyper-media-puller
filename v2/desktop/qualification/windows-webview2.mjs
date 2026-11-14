@@ -148,56 +148,18 @@ try {
         && new URL(img.src).pathname.split('/').pop().startsWith('hyperdeck-') === ${photo})
       && (!${checkFallback} || document.querySelectorAll('.device-icon svg').length === 1);
   })()`
-  const appearance = element('label.field-label select:has(option[value="legacy"])')
-  async function chooseStyle(value) {
-    await dom(`Boolean(${appearance})`)
-    await evaluate(`(() => {
-      const select = ${appearance};
-      select.value = ${JSON.stringify(value)};
-      select.dispatchEvent(new Event('change', { bubbles: true }));
-    })()`)
-    await dom(`${appearance}.value === ${JSON.stringify(value)}`)
-  }
   await dom(bodyContains('Mode réel'))
   await expectBreadcrumb('Médias')
   await click(button('Ouvrir la démonstration'))
-  await dom(renderedThumbnails(4, false, true))
+  await dom(renderedThumbnails(4, internal, true))
   await shot('00-vignettes-standard')
   await navigate('Paramètres')
-  assert.equal(await evaluate(`Boolean(${appearance})`), false)
-  if (internal) {
-    const version = element('.version-trigger')
-    for (let i = 0; i < 6; i++) await click(version)
-    assert.equal(await evaluate("Boolean(document.querySelector('dialog[open]'))"), false)
-    await click(version)
-    await dom(bodyContains('HMP Legacy Mode'))
-    const code = element('dialog input[type="password"]')
-    await click(code)
-    await send('Input.insertText', { text: 'incorrect' })
-    await click(button('Déverrouiller'))
-    await dom(bodyContains('Code incorrect.'))
-    assert.equal(await evaluate(`Boolean(${appearance})`), false)
-    await click(code)
-    await evaluate(`${code}.select()`)
-    await send('Input.insertText', { text: 'HYPERDECK' })
-    await click(button('Déverrouiller'))
-    await dom("!document.querySelector('dialog[open]')")
-    await dom(bodyContains('HMP Legacy Mode déverrouillé.'))
-    await dom(`${appearance}?.value === 'generic'`)
-    for (const value of ['legacy', 'generic', 'legacy']) {
-      await chooseStyle(value)
-      await navigate('Médias')
-      await dom(renderedThumbnails(4, value === 'legacy', true))
-      await navigate('Paramètres')
-    }
-    note('Legacy Mode unlocks on click seven, rejects an incorrect code and switches decoded images without relaunching')
-  } else {
-    assert.equal(await evaluate("Boolean(document.querySelector('.version-trigger'))"), false)
-  }
+  assert.equal(await evaluate("Boolean(document.querySelector('.version-trigger, select:has(option[value=legacy])'))"), false)
+  assert.equal(await evaluate(bodyContains('Style des équipements')), false)
   await navigate('Médias')
   await click(button('Quitter la démonstration'))
   await dom(bodyContains('Mode réel'))
-  note('Four decoded original thumbnails and generic fallback')
+  note('Four decoded model thumbnails and one generic fallback', internal ? 'PERSONAL' : 'PUBLIC')
   const agent = await evaluate('navigator.userAgent')
   report.webview2 = { runtime: process.env.HMP_WEBVIEW2_VERSION, agent }
   assert.match(agent, /Chrome\//)
@@ -463,12 +425,6 @@ try {
   await dom(recorderHas('Régie A'))
   await dom(recorderHas('Hors ligne'))
   await dom(renderedThumbnails(1, internal))
-  if (internal) {
-    await navigate('Paramètres')
-    await dom(`${appearance}?.value === 'legacy'`)
-    await navigate('Médias')
-    note('The selected style persists after restarting the native application')
-  }
   assert.equal(await evaluate("document.querySelectorAll('.recorder-list .recorder').length"), 1)
   await shot('08-enregistreur-hors-ligne')
   fixture.setOnline(true)

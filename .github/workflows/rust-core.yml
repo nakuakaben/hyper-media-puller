@@ -151,6 +151,7 @@ jobs:
             $recipient = [regex]::Match($env:HMP_PR_BODY, '(?m)^HMP-BETA-RECIPIENT=(age1[0-9a-z]{58})\r?$').Groups[1].Value
           }
           ./qualification/windows-package.ps1 -Recipient $recipient -Variant standard
+          ./qualification/windows-package.ps1 -Recipient $recipient -Variant internal
       - name: Upload encrypted Windows beta
         if: always() && runner.os == 'Windows' && (inputs.recipient != '' || (github.event.pull_request.user.login == github.repository_owner && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.body, 'HMP-BETA-RECIPIENT=')))
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

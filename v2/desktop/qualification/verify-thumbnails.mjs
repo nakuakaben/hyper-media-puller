@@ -13,6 +13,7 @@ for (const build of ['dist', 'dist-internal']) {
   const folder = new URL(`../${build}/assets/`, import.meta.url)
   const names = await readdir(folder)
   const scripts = (await Promise.all(names.filter(name => name.endsWith('.js')).map(name => read(folder, name)))).join('\n')
+  assert.doesNotMatch(scripts, /LegacyUnlock|ThumbnailStyle|versionAction|HMP Legacy Mode|Style des équipements|["']HYPERDECK["']/u, build)
   const images = await Promise.all(names.filter(name => name.endsWith('.png')).map(async name => ({ name, bytes: await read(folder, name) })))
   assert.equal(images.length, internal ? 8 : 4, build)
   for (const bytes of [...originals, ...(internal ? restricted : [])]) {
