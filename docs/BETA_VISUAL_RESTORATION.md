@@ -4,7 +4,7 @@
 
 Le propriétaire du projet confirme avoir créé l’icône historique HMP. Tauri référence directement les trois fichiers d’origine dans `build/`. Le PNG et l’ICNS contiennent une image de 1024 × 1024 px. L’ICO contient une image de 256 × 256 px. Le bundler Windows utilise cet ICO pour l’application, l’installateur et le désinstallateur. Les raccourcis NSIS pointent vers l’exécutable et utilisent sa ressource d’icône.
 
-Les quatre images de modèles dans `assets/devices/` proviennent d’Internet. Leur redistribution publique reste non autorisée. Le build Tauri normal utilise `dist` et affiche un repère générique dont l’infobulle indique que le visuel du modèle est indisponible dans ce build. Le build interne charge les PNG historiques et produit `dist-internal`. Les captures contenant ces images sont conservées localement pour validation.
+Les quatre images de modèles dans `assets/devices/` proviennent d’Internet. Leur redistribution publique reste non autorisée. Le build Tauri normal utilise `dist` et affiche des illustrations originales créées pour HMP, distribuées sous la licence MIT du dépôt. Les quatre PNG de `v2/desktop/src/device-thumbnails/` sont des dessins schématiques de face, sans photo ni logo tiers. Un repère générique identifie les modèles sans illustration dédiée. Le build interne charge les PNG historiques et produit `dist-internal`. Les captures contenant ces images sont conservées localement pour validation.
 
 ## Build interne
 

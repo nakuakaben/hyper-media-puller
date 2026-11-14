@@ -206,14 +206,14 @@ impl LocalDestination {
             let _ = stage.remove_file("probe");
             let _ = stage.remove_file("probe-final");
             published.map_err(|error| {
-                if error.kind() == io::ErrorKind::Unsupported {
-                    io::Error::new(
-                        error.kind(),
-                        "Publication sans remplacement indisponible sur ce volume",
-                    )
-                } else {
-                    error
+                if error.kind() != io::ErrorKind::Unsupported {
+                    return error;
                 }
+                #[cfg(windows)]
+                let message = "Ce volume ne permet pas la publication sans écrasement par lien physique. Choisissez un dossier accessible sur un volume compatible (par exemple NTFS).";
+                #[cfg(not(windows))]
+                let message = "Ce volume ne permet pas la publication atomique sans écrasement.";
+                io::Error::new(error.kind(), format!("{message} ({error})"))
             })?;
             Ok(stage)
         })();

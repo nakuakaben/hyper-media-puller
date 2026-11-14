@@ -1,6 +1,7 @@
 param(
   [Parameter(Mandatory)][int]$AppProcess,
-  [Parameter(Mandatory)][ValidateSet('folder', 'resize', 'close')][string]$Action
+  [Parameter(Mandatory)][ValidateSet('folder', 'resize', 'close')][string]$Action,
+  [string]$FolderPath
 )
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
@@ -72,6 +73,16 @@ if ($Action -eq 'folder') {
     throw ("Native folder picker not found. Visible app windows: " + [Native]::Windows($AppProcess))
   }
   $dialog = $automation::FromHandle($handle)
+  if ($FolderPath) {
+    $fileName = $dialog.FindFirst($scope::Descendants, [System.Windows.Automation.PropertyCondition]::new($property::AutomationIdProperty, '1148'))
+    if (!$fileName) { throw 'Native folder name control not found' }
+    $edit = [System.Windows.Automation.PropertyCondition]::new($property::ControlTypeProperty, [System.Windows.Automation.ControlType]::Edit)
+    if ($fileName.Current.ControlType -ne [System.Windows.Automation.ControlType]::Edit) {
+      $fileName = $fileName.FindFirst($scope::Descendants, $edit)
+    }
+    if (!$fileName) { throw 'Native folder name edit not found' }
+    $fileName.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue($FolderPath)
+  }
   $buttonType = [System.Windows.Automation.PropertyCondition]::new($property::ControlTypeProperty, [System.Windows.Automation.ControlType]::Button)
   $confirmId = [System.Windows.Automation.PropertyCondition]::new($property::AutomationIdProperty, '1')
   $confirmName = [System.Windows.Automation.PropertyCondition]::new($property::NameProperty, 'Select Folder')
@@ -90,7 +101,7 @@ if ($Action -eq 'folder') {
   }
   $deadline = [DateTime]::UtcNow.AddSeconds(8)
   while ([Native]::IsWindow($handle) -and [DateTime]::UtcNow -lt $deadline) { Start-Sleep -Milliseconds 150 }
-  if ([Native]::IsWindow($handle)) { throw 'The Windows folder picker did not confirm the current directory' }
+  if ([Native]::IsWindow($handle)) { throw 'The Windows folder picker did not confirm the requested directory' }
   Write-Output 'Native Windows folder picker invoked'
   return
 }

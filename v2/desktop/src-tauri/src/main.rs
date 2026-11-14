@@ -76,10 +76,19 @@ async fn choose_destination(
         .file()
         .set_title("Choisir une destination HMP V2")
         .set_parent(&window);
-    #[cfg(all(windows, feature = "windows-qualification"))]
-    let dialog = match windows_qualification::starting_directory() {
-        Some(path) => dialog.set_directory(path),
-        None => dialog,
+    #[cfg(windows)]
+    let dialog = {
+        #[cfg(feature = "windows-qualification")]
+        let start = windows_qualification::starting_directory();
+        #[cfg(not(feature = "windows-qualification"))]
+        let start: Option<std::path::PathBuf> = None;
+
+        // Resolve the default through Windows, without assuming a system drive.
+        // The native picker remains free to browse This PC and other volumes.
+        match start.or_else(|| window.path().home_dir().ok()) {
+            Some(path) => dialog.set_directory(path),
+            None => dialog,
+        }
     };
     dialog.pick_folder(move |folder| {
         let _ = tx.send(folder);
@@ -92,7 +101,7 @@ async fn choose_destination(
     };
     let path = folder
         .into_path()
-        .map_err(|_| public_error(TransferError::invalid("Dossier local requis")))?;
+        .map_err(|_| public_error(TransferError::invalid("Sélectionnez un dossier du système de fichiers")))?;
     state.select(path).await.map(Some).map_err(public_error)
 }
 

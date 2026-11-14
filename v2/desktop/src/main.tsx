@@ -17,10 +17,10 @@ import { Badge, Empty, Loading, Panel, ProgressCell, Splitter, defaultLayout, la
 import './tokens.css'
 import './style.css'
 
-const visibleDemoDecks: Deck[] = import.meta.env.MODE === 'internal' ? [...demoDecks, {
+const visibleDemoDecks: Deck[] = [...demoDecks, {
   recorder: { id: 'extreme', name: 'HyperDeck Extreme 8K', host: '192.0.2.25', port: 21 },
   model: 'HyperDeck Extreme 8K',
-}] : demoDecks
+}]
 
 const pages = [
   { id: 'media', title: 'Médias', icon: Clapperboard },

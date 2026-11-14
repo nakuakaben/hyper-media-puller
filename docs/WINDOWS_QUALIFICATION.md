@@ -13,3 +13,9 @@ Le Studio HD Plus dispose d’un premier essai physique macOS. Le Studio Mini 20
 ## Images de test
 
 Le job Rust Windows crée des images VHD jetables de 96 Mio dans le dossier temporaire du runner. Il vérifie un disque plein NTFS, le démontage pendant une écriture et le refus exFAT lorsqu’une image peut être formatée. Le fichier `storage.json` dans **windows-storage-qualification** donne le résultat par scénario. Les commandes de formatage et de démontage sont limitées aux images créées par le test.
+
+## Choisir un dossier sur plusieurs volumes
+
+Le sélecteur natif s’ouvre dans le dossier personnel Windows. Dans **Ce PC**, choisir un dossier inscriptible sur le disque voulu. Il est aussi possible de saisir son chemin absolu dans le dialogue. HMP vérifie le dossier sélectionné avec des fichiers témoins créés en exclusivité. Le message de refus indique le dossier testé et conserve la destination précédemment acceptée. La lettre du lecteur ne détermine pas sa compatibilité.
+
+Le banc WebView2 standard sélectionne le dossier du runner puis deux dossiers sur des VHD NTFS distincts. Les lettres sont attribuées par Windows. Le banc teste aussi un VHD exFAT si celui-ci peut être créé et vérifie l’absence de fichiers après le refus. Consulter `picker-volumes.json` et `evidence.json` dans **windows-webview2-qualification** pour les lettres et résultats effectifs. Les volumes amovibles et réseau restent soumis à la même vérification de publication exclusive. Ces VHD ne constituent pas une qualification USB ou SMB.
