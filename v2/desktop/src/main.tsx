@@ -127,6 +127,7 @@ function App() {
   const [jobs, setJobs] = useState<Job[]>(initialJobs)
   const [playing, setPlaying] = useState(false)
   const [selectedJob, setSelectedJob] = useState<string>()
+  const [addedNotice, setAddedNotice] = useState({ text: '', revision: 0 })
   const [layout, setLayout] = useState(readLayout)
   const [viewport, setViewport] = useState({ width: window.innerWidth, height: window.innerHeight })
   const [overlay, setOverlay] = useState<Overlay>()
@@ -213,6 +214,12 @@ function App() {
     return () => window.clearInterval(interval)
   }, [demo, playing, demoPreferences.concurrency])
 
+  useEffect(() => {
+    if (!addedNotice.text) return
+    const timeout = window.setTimeout(() => setAddedNotice(previous => ({ ...previous, text: '' })), 3500)
+    return () => window.clearTimeout(timeout)
+  }, [addedNotice])
+
   function navigate(next: string) {
     setSelected(new Set())
     setPath(next)
@@ -245,20 +252,19 @@ function App() {
 
   async function addJobs() {
     if (!chosen.length || !values.destination.trim()) return
-    if (!demo) {
+    if (demo) {
+      const additions = chosen.map(item => demoJob(item, 'demo-' + demoSequence.current++))
+      setJobs(previous => [...previous, ...additions])
+    } else {
       if (!activeDeck) return
       const batch = await real.perform(() => offload.enqueue(activeDeck.recorder.id, chosen.map(item => item.remote_path), optionsDto(values)))
       if (!batch) return
-      setSelected(new Set())
-      setSelectedJob(undefined)
-      setPreferredBatch(batch)
-      setOverlay(undefined)
-      setPage('transfers')
-      return
+      void real.refreshQueue()
     }
-    const additions = chosen.map(item => demoJob(item, 'demo-' + demoSequence.current++))
-    setJobs(previous => [...previous, ...additions])
     setSelected(new Set())
+    setOverlay(current => current === 'options' ? undefined : current)
+    const text = chosen.length === 1 ? '1 média ajouté à la file' : `${chosen.length} médias ajoutés à la file`
+    setAddedNotice(previous => ({ text, revision: previous.revision + 1 }))
   }
 
   function changeJob(id: string, retry: boolean) {
@@ -310,7 +316,7 @@ function App() {
         </div>
         <Splitter axis="y" label="Hauteur de la file" min={128} max={queueMax} value={activeLayout.queue} reverse
           onChange={queue => setLayout({ ...layout, queue })} />
-        <CompactQueue jobs={visibleJobs} names={names} onOpen={job => { setPreferredBatch(undefined); setSelectedJob(job); setPage('transfers') }} />
+        <CompactQueue notice={addedNotice.text} jobs={visibleJobs} names={names} onOpen={job => { setPreferredBatch(undefined); setSelectedJob(job); setPage('transfers') }} />
       </div>}
       {page === 'transfers' && <Transfers jobs={visibleJobs} names={names} demo={demo} selected={selectedJob} preferredBatch={preferredBatch} onSelect={job => { setPreferredBatch(undefined); setSelectedJob(job) }}
         playing={playing} onPlayback={() => setPlaying(value => !value)}

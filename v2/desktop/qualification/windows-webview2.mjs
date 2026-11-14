@@ -152,7 +152,7 @@ try {
   await shot('00-vignettes-standard')
   await click(button('Quitter la démonstration'))
   await dom(bodyContains('Mode réel'))
-  note(internal ? 'Four internal photos and generic fallback' : 'Four original standard thumbnails and generic fallback')
+  note('Four original thumbnails and generic fallback')
   const agent = await evaluate('navigator.userAgent')
   report.webview2 = { runtime: process.env.HMP_WEBVIEW2_VERSION, agent }
   assert.match(agent, /Chrome\//)
@@ -270,6 +270,10 @@ try {
   await media(long)
   await showOptions()
   await click(button('Ajouter à la file'))
+  await expectBreadcrumb('Médias')
+  await dom(bodyContains('2 médias ajoutés à la file'))
+  await dom("document.querySelectorAll('.queue-table tbody tr').length === 2")
+  await click(button('Ouvrir les transferts'))
   await click(button('Démarrer / reprendre le lot'))
   await dom("[...document.querySelectorAll('.queue-table tbody tr')].filter(row => row.innerText.includes('Vérifié')).length === 2")
   for (const name of [first, long]) assert.deepEqual(await readFile(join(destination, name)), files[name])
@@ -310,6 +314,9 @@ try {
     await media(name)
     await showOptions()
     await click(button('Ajouter à la file'))
+    await expectBreadcrumb('Médias')
+    await dom(bodyContains('1 média ajouté à la file'))
+    await click(button('Ouvrir les transferts'))
     await click(button('Démarrer / reprendre le lot'))
   }
   const row = name => `[...document.querySelectorAll('.queue-table tbody tr')].find(row => row.innerText.includes(${JSON.stringify(name)}))`

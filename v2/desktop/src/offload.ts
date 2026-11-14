@@ -25,6 +25,7 @@ export function useOffload() {
   const lock = useRef(false)
   const sampled = useRef<{ queue: Queue; timestamp: number }>()
   const initial = useRef(false)
+  const refreshQueue = useRef<() => Promise<void>>(async () => {})
 
   useEffect(() => {
     if (!bridge.native) return
@@ -37,10 +38,12 @@ export function useOffload() {
       }
     }).catch(error => { if (mounted) setFeedback(errorMessage(error)) })
     let timer: number
-    async function poll() {
+    let request = 0
+    async function updateQueue() {
+      const current = ++request
       try {
         const next = await offload.queue()
-        if (!mounted) return
+        if (!mounted || current !== request) return
         if (next.schema_version !== schemaVersion) throw new Error('Version de file inconnue')
         const timestamp = performance.now()
         const previous = sampled.current
@@ -57,14 +60,17 @@ export function useOffload() {
         setQueue(next)
         setConnectionError('')
       } catch (error) {
-        if (mounted) {
+        if (mounted && current === request) {
           sampled.current = undefined
           setRates({})
           setConnectionError(errorMessage(error))
         }
-      } finally {
-        if (mounted) timer = window.setTimeout(poll, 450)
       }
+    }
+    refreshQueue.current = updateQueue
+    async function poll() {
+      await updateQueue()
+      if (mounted) timer = window.setTimeout(poll, 450)
     }
     void poll()
     return () => { mounted = false; window.clearTimeout(timer) }
@@ -85,5 +91,5 @@ export function useOffload() {
     if (value) setSettings(value)
   }
 
-  return { settings, setSettings, queue, rates, busy, feedback, destinationError, connectionError, perform, choose }
+  return { settings, setSettings, queue, rates, busy, feedback, destinationError, connectionError, perform, choose, refreshQueue: () => refreshQueue.current() }
 }
