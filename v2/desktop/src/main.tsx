@@ -13,8 +13,6 @@ import { RealReports } from './reports'
 import { useOffload } from './offload'
 import { useEquipment } from './equipment'
 import { NetworkScan } from './network-scan'
-import { LegacyUnlock, legacyAvailable, readThumbnailStyle, saveThumbnailStyle } from './legacy-appearance'
-import type { ThumbnailStyle } from './device-model'
 import { EquipmentEdit, EquipmentSettings, RecorderMenu } from './equipment-controls'
 import { Badge, Empty, Loading, Panel, ProgressCell, Splitter, defaultLayout, layoutStyle, type Layout } from './ui'
 import './tokens.css'
@@ -32,7 +30,7 @@ const pages = [
   { id: 'settings', title: 'Paramètres', icon: Settings2 },
 ] as const
 type Page = typeof pages[number]['id']
-type Overlay = 'scan' | 'connect' | 'options' | 'components' | 'legacy'
+type Overlay = 'scan' | 'connect' | 'options' | 'components'
 const layoutKey = 'hmp-v2.preview.layout'
 const idle: Listing = { status: 'idle', items: [] }
 
@@ -115,24 +113,6 @@ function App() {
   const [saved, setSaved] = useState(false)
   const [preferredBatch, setPreferredBatch] = useState<string>()
   const [page, setPage] = useState<Page>('media')
-  const versionClicks = useRef(0)
-  const [thumbnailStyle, setThumbnailStyle] = useState(readThumbnailStyle)
-  const [appearanceNotice, setAppearanceNotice] = useState('')
-
-  function clickVersion() {
-    versionClicks.current += 1
-    if (versionClicks.current === 7) {
-      versionClicks.current = 0
-      setOverlay('legacy')
-    }
-  }
-
-  function changeThumbnailStyle(style: ThumbnailStyle, unlocked = false) {
-    setThumbnailStyle(style)
-    setAppearanceNotice(saveThumbnailStyle(style)
-      ? unlocked ? 'HMP Legacy Mode déverrouillé.' : ''
-      : 'Le style est appliqué pour cette session. L’enregistrement de la préférence a échoué.')
-  }
   const [demo, setDemo] = useState(false)
   const [info, setInfo] = useState<PreviewInfo>()
   const [bridgeError, setBridgeError] = useState('')
@@ -324,7 +304,7 @@ function App() {
       {!demo && real.feedback && <div className="callout error bridge-error" role="alert">{real.feedback}</div>}
       {page === 'media' && <div className="media-layout" style={layoutStyle(activeLayout)}>
         <div className={'upper' + (compact ? ' compact' : '')}>
-          <Recorders thumbnailStyle={thumbnailStyle ?? 'generic'} decks={decks} active={id} demo={demo} native={bridge.native} onSelect={chooseDeck} onConnect={() => setOverlay('connect')} onSearch={() => setOverlay('scan')}
+          <Recorders decks={decks} active={id} demo={demo} native={bridge.native} onSelect={chooseDeck} onConnect={() => setOverlay('connect')} onSearch={() => setOverlay('scan')}
             canConnect={hardware.ready && !hardware.busy} connections={hardware.status}
             onActions={(id, x, y) => {
               const deck = hardware.decks.find(item => item.recorder.id === id)
@@ -349,16 +329,6 @@ function App() {
         onConnect={() => setOverlay('connect')} onReset={() => setLayout(defaultLayout)} onComponents={() => setOverlay('components')}
         onChoose={real.choose} available={available} destinationError={real.destinationError} busy={real.busy} onSave={saveDefaults} saved={saved}
         canConnect={hardware.ready && !hardware.busy}
-        versionAction={legacyAvailable && thumbnailStyle === null ? clickVersion : undefined}
-        appearance={legacyAvailable && thumbnailStyle !== null && <>
-          <label className="field-label">Style des équipements
-            <select value={thumbnailStyle} onChange={event => changeThumbnailStyle(event.target.value === 'legacy' ? 'legacy' : 'generic')}>
-              <option value="generic">Génériques</option>
-              <option value="legacy">Legacy</option>
-            </select>
-          </label>
-          {appearanceNotice && <p role="status">{appearanceNotice}</p>}
-        </>}
         equipmentPanel={<EquipmentSettings enabled={!demo && hardware.ready && !hardware.busy}
           hasDecks={hardware.decks.length > 0} notice={demo ? '' : hardware.notice}
           onImport={() => void hardware.exchange(true)} onExport={() => void hardware.exchange(false)}
@@ -416,9 +386,6 @@ function App() {
           }
           setHardwareDialog(undefined)
         }} />
-    </Modal>}
-    {legacyAvailable && overlay === 'legacy' && <Modal title="HMP Legacy Mode" onClose={() => setOverlay(undefined)}>
-      <LegacyUnlock onUnlock={() => { changeThumbnailStyle('generic', true); setOverlay(undefined) }} />
     </Modal>}
     {overlay === 'options' && <Modal title="Options du lot" onClose={() => setOverlay(undefined)}>{!demo && real.feedback && <div className="callout error" role="alert">{real.feedback}</div>}{transferOptions}</Modal>}
     {overlay === 'components' && <Modal title="Planche des composants" wide onClose={() => setOverlay(undefined)}><ComponentBoard /></Modal>}
