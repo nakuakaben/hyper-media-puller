@@ -78,8 +78,8 @@ pub fn network_interfaces() -> Result<Vec<Interface>, ErrorDto> {
 }
 
 #[tauri::command]
-pub fn start_network_scan(
-    app: AppHandle,
+pub fn start_network_scan<R: tauri::Runtime>(
+    app: AppHandle<R>,
     state: State<'_, NetworkScan>,
     name: String,
     address: Ipv4Addr,

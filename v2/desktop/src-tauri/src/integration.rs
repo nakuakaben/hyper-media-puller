@@ -233,3 +233,67 @@ fn ipc_listing_queue_actions_snapshot_and_real_report() {
         reopened.engine().shutdown().await.unwrap();
     });
 }
+
+#[test]
+fn discovery_permissions_dispatch_from_local_main_webview() {
+    let profile = tempfile::tempdir().unwrap();
+    let service =
+        tauri::async_runtime::block_on(async { Arc::new(Offload::new(profile.path()).unwrap()) });
+    let app = tauri::test::mock_builder()
+        .manage(service)
+        .manage(EquipmentStore::open(profile.path()))
+        .manage(network_scan::NetworkScan::default())
+        .invoke_handler(tauri::generate_handler![
+            network_scan::network_interfaces,
+            network_scan::start_network_scan,
+            network_scan::network_scan_progress,
+            network_scan::cancel_network_scan,
+            network_scan::add_network_recorder
+        ])
+        .build(context())
+        .unwrap();
+    let window = tauri::WebviewWindowBuilder::new(&app, "main", Default::default())
+        .build()
+        .unwrap();
+    assert!(
+        invoke(&window, "network_interfaces", json!({}))
+            .unwrap()
+            .is_array()
+    );
+
+    // An invalid CIDR exercises the handler without probing any network host.
+    let id = invoke(
+        &window,
+        "start_network_scan",
+        json!({
+            "name": "qualification", "address": "192.0.2.1", "cidr": "invalid",
+        }),
+    )
+    .unwrap();
+    assert!(id.is_string());
+    let progress = invoke(&window, "network_scan_progress", json!({"id": id})).unwrap();
+    assert!(progress["finished"].is_boolean());
+    assert_eq!(
+        invoke(&window, "cancel_network_scan", json!({"id": id})).unwrap(),
+        Value::Null
+    );
+    let error = invoke(
+        &window,
+        "add_network_recorder",
+        json!({"id": id, "address": "192.0.2.2"}),
+    )
+    .unwrap_err();
+    assert_eq!(error["code"], "invalid_input");
+    assert_eq!(error["message"], "HyperDeck à confirmer");
+
+    let other = tauri::WebviewWindowBuilder::new(&app, "other", Default::default())
+        .build()
+        .unwrap();
+    let error = invoke(&other, "network_interfaces", json!({})).unwrap_err();
+    assert!(
+        error
+            .as_str()
+            .is_some_and(|message| message.contains("not allowed")),
+        "{error}"
+    );
+}

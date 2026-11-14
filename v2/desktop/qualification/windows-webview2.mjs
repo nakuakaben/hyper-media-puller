@@ -165,6 +165,35 @@ try {
   assert.match(font, /Inter Variable/)
   assert.deepEqual(tokens, { background: '#09090b', panel: '#18181b', border: '#27272a', selection: '#1177d7', navigation: 44, status: 28 })
   note('RWA 0.8.1 palette, typography and bars match the native renderer')
+  const invoke = async (command, args = {}) => {
+    const response = await send('Runtime.evaluate', {
+      expression: `window.__TAURI_INTERNALS__.invoke(${JSON.stringify(command)}, ${JSON.stringify(args)})
+        .then(value => ({ value }), error => ({ error }))`,
+      awaitPromise: true,
+      returnByValue: true,
+    })
+    return response.result.value
+  }
+  await click(element('[aria-label="Rechercher des HyperDeck"]'))
+  await dom("document.querySelector('dialog select')?.options[0]?.value === '0'")
+  await dom("document.querySelector('dialog input')?.value.includes('/')")
+  await press('Escape', 27)
+  await dom("!document.querySelector('dialog[open]')")
+  const interfaces = (await invoke('network_interfaces')).value
+  assert.ok(interfaces.length > 0)
+  const { name, address } = interfaces[0]
+  // Invalid CIDR reaches the backend without sending a probe on the runner network.
+  const { value: scanId } = await invoke('start_network_scan', { name, address, cidr: 'invalid' })
+  assert.match(scanId, /^[0-9a-f-]{36}$/)
+  assert.equal(typeof (await invoke('network_scan_progress', { id: scanId })).value.finished, 'boolean')
+  assert.ok(!Object.hasOwn(await invoke('cancel_network_scan', { id: scanId }), 'error'))
+  assert.deepEqual(
+    Object.fromEntries(Object.entries((await invoke('add_network_recorder', { id: scanId, address })).error)
+      .filter(([key]) => ['code', 'message'].includes(key))),
+    { code: 'invalid_input', message: 'HyperDeck à confirmer' },
+  )
+  note('Discovery dialog and all five commands passed the native WebView2 ACL')
+
   const originalWidth = await evaluate('innerWidth')
   note('Native window resize', await native('resize'))
   await dom(`innerWidth !== ${originalWidth}`)

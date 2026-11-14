@@ -73,7 +73,18 @@ try {
             $reinstall = Start-Process $Installer -ArgumentList "/S /D=$path" -Wait -PassThru
             if ($reinstall.ExitCode -ne 0) { throw 'Same-version reinstall failed.' }
         }
-        $app = Start-Process $exe -WorkingDirectory $path -PassThru
+        if ($pass -eq 1) {
+            $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, 0)
+            $listener.Start()
+            $port = $listener.LocalEndpoint.Port
+            $listener.Stop()
+            $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = "--remote-debugging-address=127.0.0.1 --remote-debugging-port=$port"
+        }
+        try {
+            $app = Start-Process $exe -WorkingDirectory $path -PassThru
+        } finally {
+            if ($pass -eq 1) { Remove-Item Env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS }
+        }
         $deadline = (Get-Date).AddSeconds(30)
         do {
             Start-Sleep -Milliseconds 250
@@ -83,6 +94,11 @@ try {
         $report.windowTitle = $app.MainWindowTitle
         if ($report.windowTitle -cne 'HMP') { throw "Unexpected native window title: $($report.windowTitle)" }
         $report.launched = $true
+        if ($pass -eq 1) {
+            & node (Join-Path $PSScriptRoot 'windows-discovery-acl.mjs') $port
+            if ($LASTEXITCODE -ne 0) { throw 'Discovery IPC permissions failed on installed executable' }
+            $report.discoveryIpc = $true
+        }
         if (-not $app.CloseMainWindow() -or -not $app.WaitForExit(15000) -or $app.ExitCode -ne 0) {
             throw 'The installed application did not close normally.'
         }
