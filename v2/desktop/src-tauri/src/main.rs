@@ -99,9 +99,11 @@ async fn choose_destination(
     let Some(folder) = selected else {
         return Ok(None);
     };
-    let path = folder
-        .into_path()
-        .map_err(|_| public_error(TransferError::invalid("Sélectionnez un dossier du système de fichiers")))?;
+    let path = folder.into_path().map_err(|_| {
+        public_error(TransferError::invalid(
+            "Sélectionnez un dossier du système de fichiers",
+        ))
+    })?;
     state.select(path).await.map(Some).map_err(public_error)
 }
 
