@@ -132,7 +132,7 @@ jobs:
       - name: Build the internal frontend on macOS
         if: runner.os != 'Windows'
         run: npm run build:internal
-      - name: Verify both variants embed only the original thumbnails
+      - name: Verify thumbnail assets and internal-only historical photos
         run: node qualification/verify-thumbnails.mjs
       - run: cargo clippy --manifest-path src-tauri/Cargo.toml --locked --all-targets -- -D warnings
       - run: cargo test --manifest-path src-tauri/Cargo.toml --locked

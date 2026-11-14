@@ -4,7 +4,13 @@
 
 Le propriétaire du projet confirme avoir créé l’icône historique HMP. Tauri référence directement les trois fichiers d’origine dans `build/`. Le PNG et l’ICNS contiennent une image de 1024 × 1024 px. L’ICO contient une image de 256 × 256 px. Le bundler Windows utilise cet ICO pour l’application, l’installateur et le désinstallateur. Les raccourcis NSIS pointent vers l’exécutable et utilisent sa ressource d’icône.
 
-Les quatre images de modèles dans `assets/devices/` proviennent d’Internet. Leur redistribution publique reste non autorisée. Le build Tauri normal utilise `dist` et affiche des illustrations originales créées pour HMP, distribuées sous la licence MIT du dépôt. Les quatre PNG de `v2/desktop/src/device-thumbnails/` sont des dessins schématiques de face, sans photo ni logo tiers. Un repère générique identifie les modèles sans illustration dédiée. Décision produit du 14 novembre 2026. Les variantes V2 standard et interne sur macOS et Windows embarquent les mêmes miniatures originales et le même repère générique. Le build interne produit `dist-internal` avec son profil distinct. Les anciennes captures restent des preuves historiques.
+Les quatre images de modèles dans `assets/devices/` proviennent d’Internet. Leur redistribution publique reste non autorisée. Le build Tauri normal utilise `dist` et affiche des illustrations originales créées pour HMP, distribuées sous la licence MIT du dépôt. Les quatre PNG de `v2/desktop/src/device-thumbnails/` sont des dessins schématiques de face, sans photo ni logo tiers. Un repère générique identifie les modèles sans illustration dédiée. Les variantes standard et interne affichent ces illustrations par défaut. Les anciens modèles tels que le Studio Mini 2017 gardent le repère générique.
+
+### Mode Legacy interne
+
+Le build standard utilise `dist` et exclut les photos historiques et les commandes du mode Legacy. Le build interne autorisé utilise `src-tauri/tauri.internal.conf.json`, `dist-internal` et un profil d’application distinct. Il ajoute les quatre PNG existants de `assets/devices/` sans retouche. Le mode se déverrouille depuis le numéro de version du panneau Application et mémorise le style dans le profil WebView. Le code de l’Easter Egg sert à masquer l’interface. Les actifs sont protégés de la redistribution par la séparation des builds. Le profil interne et ses installateurs sont réservés aux essais autorisés.
+
+Vérifier les deux frontends avec `npm run build`, `npm run build:internal` et `node qualification/verify-thumbnails.mjs` depuis `v2/desktop`. Les PNG sont vérifiés octet par octet. La qualification native WebView2 vérifie leur décodage en démonstration et sur la fixture FTP en mode réel.
 
 ## Build interne
 

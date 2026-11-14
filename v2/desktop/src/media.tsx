@@ -3,7 +3,8 @@ import { useState } from 'react'
 import type { Connection, Deck, Media } from './contracts'
 import { isSystemPath, selectableMedia } from './media-visibility'
 import { formatBytes } from './demo'
-import { deviceImages } from './device-images'
+import { thumbnailSources } from './device-images'
+import type { ThumbnailStyle } from './device-model'
 import { Destination, Options, type Preferences } from './settings'
 import { Badge, Empty, Loading, Panel } from './ui'
 
@@ -11,8 +12,16 @@ const connectionLabels: Record<Connection, string> = {
   checking: 'Vérification en cours', online: 'En ligne', offline: 'Hors ligne', unconfirmed: 'Identité à confirmer',
 }
 
-export function Recorders({ decks, active, demo, native, onSelect, onConnect, onSearch, canConnect, connections, onActions }: {
-  decks: Deck[]; active: string | undefined; demo: boolean; native: boolean
+function DeviceThumbnail({ illustration, photo }: ReturnType<typeof thumbnailSources>) {
+  const [failed, setFailed] = useState<string[]>([])
+  const image = [photo, illustration].find(src => src && !failed.includes(src))
+  return <span className="device-icon">{image ? <img key={image} src={image} alt=""
+    onError={() => setFailed(previous => [...previous, image])} /> :
+    <span title="Enregistreur générique"><Server size={23} aria-hidden="true" /></span>}</span>
+}
+
+export function Recorders({ thumbnailStyle, decks, active, demo, native, onSelect, onConnect, onSearch, canConnect, connections, onActions }: {
+  thumbnailStyle: ThumbnailStyle; decks: Deck[]; active: string | undefined; demo: boolean; native: boolean
   onSelect: (id: string) => void; onConnect: () => void; onSearch: () => void
   canConnect: boolean; connections: Record<string, Connection>; onActions: (id: string, x: number, y: number) => void
 }) {
@@ -25,8 +34,7 @@ export function Recorders({ decks, active, demo, native, onSelect, onConnect, on
       value={filter} onChange={event => setFilter(event.target.value)} placeholder="Rechercher" /></label></div>
     <div className="recorder-list">
       {visible.map(({ recorder, model }) => {
-        const modelKey = model.trim().toLowerCase()
-        const image = Object.hasOwn(deviceImages, modelKey) ? deviceImages[modelKey] : undefined
+        const images = thumbnailSources(model, thumbnailStyle)
         const offline = demo && recorder.id === 'legacy'
         const connection = connections[recorder.id] ?? 'checking'
         const status = demo ? offline ? 'Hors ligne' : 'Appareil de démonstration' : connectionLabels[connection]
@@ -45,8 +53,7 @@ export function Recorders({ decks, active, demo, native, onSelect, onConnect, on
             const bounds = event.currentTarget.getBoundingClientRect()
             onActions(recorder.id, bounds.left + 8, bounds.bottom)
           }}>
-          <span className="device-icon">{image ? <img src={image} alt="" /> :
-            <span title="Enregistreur générique"><Server size={23} aria-hidden="true" /></span>}</span>
+          <DeviceThumbnail key={JSON.stringify(images)} {...images} />
           <span className="device-label"><strong className="truncate" title={recorder.name}>{recorder.name}</strong>
             {model !== recorder.name && <span className="truncate" title={model}>{model}</span>}
             <span className="mono truncate">{offline ? 'Hors ligne' : recorder.host}</span>

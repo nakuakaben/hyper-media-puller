@@ -44,11 +44,11 @@ export function Destination({ demo, values, onChange, onChoose, available, busy,
   </div>
 }
 
-export function Settings({ demo, native, info, values, onChange, onConnect, onReset, onComponents, onChoose, available, busy, destinationError, onSave, saved, canConnect, equipmentPanel }: {
+export function Settings({ demo, native, info, values, onChange, onConnect, onReset, onComponents, onChoose, available, busy, destinationError, onSave, saved, canConnect, equipmentPanel, versionAction, appearance }: {
   demo: boolean; native: boolean; info?: PreviewInfo; values: Preferences; onChange: (p: Preferences) => void
   onConnect: () => void; onReset: () => void; onComponents: () => void
   onChoose: () => void; available?: string; busy: boolean; destinationError?: string; onSave: () => void; saved: boolean
-  canConnect: boolean; equipmentPanel: ReactNode
+  canConnect: boolean; equipmentPanel: ReactNode; versionAction?: () => void; appearance?: ReactNode
 }) {
   return <div className="settings-grid">
     <Panel title="Connexions" icon={Network}><div className="panel-body stack">
@@ -76,9 +76,12 @@ export function Settings({ demo, native, info, values, onChange, onConnect, onRe
       </>}
     </div></Panel>
     <Panel title="Application" icon={Info}><div className="panel-body stack">
-      <dl className="key-values"><dt>Version</dt><dd className="mono">{info?.version ?? version} bêta</dd>
+      <dl className="key-values"><dt>Version</dt><dd className="mono">{versionAction ?
+        <button type="button" className="version-trigger" onClick={versionAction}>{info?.version ?? version} bêta</button> :
+        <>{info?.version ?? version} bêta</>}</dd>
         <dt>Contrat</dt><dd className="mono">{info?.schema_version ?? '—'}</dd>
         <dt>Profil V2</dt><dd className="mono break-path">{info?.profile ?? 'Aperçu navigateur'}</dd></dl>
+      {appearance}
       <div className="row"><button onClick={onReset}><Settings2 size={14} />Réinitialiser la disposition</button>
         <button onClick={onComponents}>Planche des composants</button></div>
     </div></Panel>
