@@ -233,3 +233,73 @@ fn ipc_listing_queue_actions_snapshot_and_real_report() {
         reopened.engine().shutdown().await.unwrap();
     });
 }
+
+#[test]
+fn four_synthetic_recorders_keep_independent_pending_batches() {
+    tauri::async_runtime::block_on(async {
+        let profile = tempfile::tempdir().unwrap();
+        let service = Offload::new(profile.path()).unwrap();
+        let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let server = tokio::spawn(ftp_fixture(listener));
+        let mut expected = Vec::new();
+        let mut directories = Vec::new();
+        for (index, (duplicate, checksum)) in [
+            ("rename", "sha256"),
+            ("skip", "md5"),
+            ("overwrite", "both"),
+            ("rename", "none"),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let recorder = Recorder::new(
+                RecorderId::new(Uuid::new_v4()).unwrap(),
+                &format!("Recorder {}", index + 1),
+                "127.0.0.1",
+                port,
+            )
+            .unwrap();
+            let directory = tempfile::tempdir().unwrap();
+            service.select(directory.path().to_owned()).await.unwrap();
+            service.remember(recorder.clone());
+            let id = recorder.id().to_string();
+            service.list(&id, "/").await.unwrap();
+            let options = json!({
+                "batch": { "duplicate": duplicate, "checksum": checksum },
+                "global_limit": 2, "recorder_limit": 1,
+            });
+            let request = serde_json::from_value(json!({
+                "schema_version": 1, "recorder_id": id, "paths": ["/clip.mov"], "options": options,
+            }))
+            .unwrap();
+            let batch = service.enqueue(request).await.unwrap();
+            expected.push((batch, id, options, directory.path().canonicalize().unwrap()));
+            directories.push(directory);
+        }
+        let queue = serde_json::to_value(service.queue().await.unwrap()).unwrap();
+        assert_eq!(queue["active"], 0);
+        let batches = queue["batches"].as_array().unwrap();
+        let jobs = queue["jobs"].as_array().unwrap();
+        let destinations = queue["destinations"].as_array().unwrap();
+        assert_eq!(batches.len(), 4);
+        assert_eq!(jobs.len(), 4);
+        for (id, recorder, options, directory) in expected {
+            let batch = batches.iter().find(|batch| batch["id"] == id).unwrap();
+            let job = jobs.iter().find(|job| job["batch_id"] == id).unwrap();
+            let destination = destinations
+                .iter()
+                .find(|destination| destination["id"] == id)
+                .unwrap();
+            assert_eq!(batch["started"], false);
+            assert_eq!(job["status"], "pending");
+            assert_eq!(job["recorder_id"], recorder);
+            assert_eq!(job["remote_path"], "/clip.mov");
+            assert_eq!(destination["destination"], directory.to_str().unwrap());
+            assert_eq!(destination["options"], options);
+            assert!(!directory.join(NAME).exists());
+        }
+        service.engine().shutdown().await.unwrap();
+        server.abort();
+    });
+}

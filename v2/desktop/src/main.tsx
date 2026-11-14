@@ -259,6 +259,7 @@ function App() {
       if (!activeDeck) return
       const batch = await real.perform(() => offload.enqueue(activeDeck.recorder.id, chosen.map(item => item.remote_path), optionsDto(values)))
       if (!batch) return
+      setPreferredBatch(batch)
       void real.refreshQueue()
     }
     setSelected(new Set())
@@ -316,7 +317,7 @@ function App() {
         </div>
         <Splitter axis="y" label="Hauteur de la file" min={128} max={queueMax} value={activeLayout.queue} reverse
           onChange={queue => setLayout({ ...layout, queue })} />
-        <CompactQueue notice={addedNotice.text} jobs={visibleJobs} names={names} onOpen={job => { setPreferredBatch(undefined); setSelectedJob(job); setPage('transfers') }} />
+        <CompactQueue notice={addedNotice.text} jobs={visibleJobs} names={names} onOpen={job => { if (job) setPreferredBatch(undefined); setSelectedJob(job); setPage('transfers') }} />
       </div>}
       {page === 'transfers' && <Transfers jobs={visibleJobs} names={names} demo={demo} selected={selectedJob} preferredBatch={preferredBatch} onSelect={job => { setPreferredBatch(undefined); setSelectedJob(job) }}
         playing={playing} onPlayback={() => setPlaying(value => !value)}
