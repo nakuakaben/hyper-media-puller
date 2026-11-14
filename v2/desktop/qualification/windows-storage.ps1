@@ -54,10 +54,12 @@ if ($Picker) {
     (Join-Path $root 'picker-second.vhd')
     (Join-Path $root 'picker-exfat.vhd')
   )
+  $systemVolume = Join-Path ([Environment]::GetFolderPath('CommonApplicationData')) ('hmp-picker-' + [Guid]::NewGuid().ToString('N'))
   try {
+    New-Item -ItemType Directory -Path $systemVolume | Out-Null
     $first = New-TestVolume $images[0] NTFS 'HMPQA1'
     $second = New-TestVolume $images[1] NTFS 'HMPQA2'
-    $env:HMP_QA_NTFS_VOLUMES = "$first;$second"
+    $env:HMP_QA_NTFS_VOLUMES = "$systemVolume;$first;$second"
     try {
       $exfat = New-TestVolume $images[2] exFAT 'HMPQAEX'
       $folder = Join-Path $exfat 'HMP Incompatible'
@@ -66,7 +68,7 @@ if ($Picker) {
     } catch {
       $checks.exfat_unavailable = $_.Exception.Message
     }
-    $checks.ntfs = @($first, $second)
+    $checks.ntfs = @($systemVolume, $first, $second)
     $checks.exfat = $env:HMP_QA_EXFAT_VOLUME
     node qualification/windows-webview2.mjs src-tauri/target/debug/hmp-v2-preview.exe $Evidence
     if ($LASTEXITCODE -ne 0) { throw 'Native WebView2 destination qualification failed' }
@@ -76,6 +78,7 @@ if ($Picker) {
   } finally {
     $checks | ConvertTo-Json | Set-Content (Join-Path $Evidence 'picker-volumes.json') -Encoding utf8
     foreach ($image in $images) { Remove-TestImage $image }
+    if (Test-Path -LiteralPath $systemVolume) { Remove-Item -LiteralPath $systemVolume -Recurse -Force }
     Remove-Item -LiteralPath $root -Recurse -Force
   }
   return

@@ -74,12 +74,12 @@ if ($Action -eq 'folder') {
   }
   $dialog = $automation::FromHandle($handle)
   if ($FolderPath) {
-    $fileName = $dialog.FindFirst($scope::Descendants, [System.Windows.Automation.PropertyCondition]::new($property::AutomationIdProperty, '1148'))
-    if (!$fileName) { throw 'Native folder name control not found' }
     $edit = [System.Windows.Automation.PropertyCondition]::new($property::ControlTypeProperty, [System.Windows.Automation.ControlType]::Edit)
-    if ($fileName.Current.ControlType -ne [System.Windows.Automation.ControlType]::Edit) {
-      $fileName = $fileName.FindFirst($scope::Descendants, $edit)
-    }
+    $edits = @($dialog.FindAll($scope::Descendants, $edit) | Where-Object {
+      !$_.Current.IsOffscreen -and $_.Current.IsEnabled -and $_.Current.BoundingRectangle.Height -gt 0
+    })
+    # The folder name edit is at the bottom; address and search edits sit at the top.
+    $fileName = $edits | Sort-Object { $_.Current.BoundingRectangle.Top } -Descending | Select-Object -First 1
     if (!$fileName) { throw 'Native folder name edit not found' }
     $fileName.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue($FolderPath)
   }
