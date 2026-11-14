@@ -5,9 +5,13 @@ use std::{
     mem::{offset_of, size_of},
     os::windows::io::AsRawHandle,
 };
-use windows_sys::Win32::{
-    Foundation::{GENERIC_READ, GENERIC_WRITE, HANDLE},
-    Storage::FileSystem::{DELETE, FILE_RENAME_INFO, FileRenameInfo, SetFileInformationByHandle},
+use windows_sys::{
+    Wdk::Storage::FileSystem::{FileRenameInformation, NtSetInformationFile},
+    Win32::{
+        Foundation::{GENERIC_READ, GENERIC_WRITE, HANDLE, RtlNtStatusToDosError},
+        Storage::FileSystem::{DELETE, FILE_RENAME_INFO},
+        System::IO::IO_STATUS_BLOCK,
+    },
 };
 
 pub(super) fn enable_rename(options: &mut OpenOptions) {
@@ -44,18 +48,20 @@ pub(super) fn publish(file: &File, target: &Dir, name: &str) -> io::Result<()> {
 
 #[allow(unsafe_code)]
 fn native_rename(file: &File, info: &RenameInfo, size: u32) -> io::Result<()> {
-    // The source and destination handles and initialized FILE_RENAME_INFO
-    // buffer remain live throughout the synchronous call. Flags are zero.
-    let ok = unsafe {
-        SetFileInformationByHandle(
+    let mut status_block = IO_STATUS_BLOCK::default();
+    // The temporary is opened for synchronous I/O. Both handles and the
+    // initialized buffers remain live for the native call and status conversion.
+    let status = unsafe {
+        NtSetInformationFile(
             file.as_raw_handle(),
-            FileRenameInfo,
+            &mut status_block,
             std::ptr::from_ref(info).cast(),
             size,
+            FileRenameInformation,
         )
     };
-    if ok == 0 {
-        let error = io::Error::last_os_error();
+    if status != 0 {
+        let error = io::Error::from_raw_os_error(unsafe { RtlNtStatusToDosError(status) } as i32);
         return Err(match error.raw_os_error() {
             Some(1 | 50) => io::ErrorKind::Unsupported.into(),
             _ => error,
