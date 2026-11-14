@@ -74,7 +74,7 @@ pub(super) fn probe(stage: &Dir, target: &Dir) -> io::Result<()> {
         source.write_all(b"source")?;
         let mut existing =
             target.open_with(&marker, OpenOptions::new().write(true).create_new(true))?;
-        let collision = (|| {
+        let collision = (|| -> io::Result<()> {
             existing.write_all(b"existing")?;
             drop(existing);
             expect_collision(publish(&source, target, &marker))?;
