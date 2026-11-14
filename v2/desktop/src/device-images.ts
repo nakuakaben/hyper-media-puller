@@ -3,7 +3,7 @@ import pro from './device-thumbnails/studio-4k-pro.png?no-inline'
 import mini from './device-thumbnails/studio-hd-mini.png?no-inline'
 import plus from './device-thumbnails/studio-hd-plus.png?no-inline'
 import { legacyPhotos } from '@legacy-photos'
-import { deviceModel, type DeviceModel, type ThumbnailStyle } from './device-model'
+import { deviceModel, type DeviceModel } from './device-model'
 
 const illustrations: Record<DeviceModel, string> = {
   'extreme-8k': extreme,
@@ -12,8 +12,8 @@ const illustrations: Record<DeviceModel, string> = {
   'studio-hd-plus': plus,
 }
 
-export function thumbnailSources(model: string, style: ThumbnailStyle) {
+export function thumbnailSources(model: string) {
   const key = deviceModel(model)
   if (!key) return { illustration: undefined, photo: undefined }
-  return { illustration: illustrations[key], photo: style === 'legacy' ? legacyPhotos?.[key] : undefined }
+  return { illustration: illustrations[key], photo: legacyPhotos?.[key] }
 }
