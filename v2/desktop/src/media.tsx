@@ -4,7 +4,6 @@ import type { Connection, Deck, Media } from './contracts'
 import { isSystemPath, selectableMedia } from './media-visibility'
 import { formatBytes } from './demo'
 import { thumbnailSources } from './device-images'
-import type { ThumbnailStyle } from './device-model'
 import { Destination, Options, type Preferences } from './settings'
 import { Badge, Empty, Loading, Panel } from './ui'
 
@@ -20,8 +19,8 @@ function DeviceThumbnail({ illustration, photo }: ReturnType<typeof thumbnailSou
     <span title="Enregistreur générique"><Server size={23} aria-hidden="true" /></span>}</span>
 }
 
-export function Recorders({ thumbnailStyle, decks, active, demo, native, onSelect, onConnect, onSearch, canConnect, connections, onActions }: {
-  thumbnailStyle: ThumbnailStyle; decks: Deck[]; active: string | undefined; demo: boolean; native: boolean
+export function Recorders({ decks, active, demo, native, onSelect, onConnect, onSearch, canConnect, connections, onActions }: {
+  decks: Deck[]; active: string | undefined; demo: boolean; native: boolean
   onSelect: (id: string) => void; onConnect: () => void; onSearch: () => void
   canConnect: boolean; connections: Record<string, Connection>; onActions: (id: string, x: number, y: number) => void
 }) {
@@ -34,7 +33,7 @@ export function Recorders({ thumbnailStyle, decks, active, demo, native, onSelec
       value={filter} onChange={event => setFilter(event.target.value)} placeholder="Rechercher" /></label></div>
     <div className="recorder-list">
       {visible.map(({ recorder, model }) => {
-        const images = thumbnailSources(model, thumbnailStyle)
+        const images = thumbnailSources(model)
         const offline = demo && recorder.id === 'legacy'
         const connection = connections[recorder.id] ?? 'checking'
         const status = demo ? offline ? 'Hors ligne' : 'Appareil de démonstration' : connectionLabels[connection]
