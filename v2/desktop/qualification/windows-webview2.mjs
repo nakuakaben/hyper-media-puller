@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { spawn, execFile } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { mkdir, mkdtemp, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, readdir, realpath, rename, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { promisify } from 'node:util'
@@ -54,7 +54,7 @@ function embeddedWebView(root) {
   }
 }
 
-const root = await mkdtemp(join(tmpdir(), 'hmp-win-qa-'))
+const root = await realpath(await mkdtemp(join(tmpdir(), 'hmp-win-qa-')))
 const destination = join(root, 'Régie extérieure ' + 'session '.repeat(9).trimEnd())
 await mkdir(destination)
 await mkdir(join(root, 'profile'))
