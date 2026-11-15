@@ -17,7 +17,7 @@ if (-not (Test-Path -LiteralPath $binaryPath -PathType Leaf)) {
     throw 'HMP executable is missing.'
 }
 $version = (Get-Content -LiteralPath (Join-Path $desktop 'package.json') -Raw | ConvertFrom-Json).version
-if ($version -cnotmatch '^0\\.[0-9]+\\.[0-9]+-beta\\.[0-9]+$') {
+if ($version -cnotmatch '^0\.[0-9]+\.[0-9]+-beta\.[0-9]+$') {
     throw 'A versioned beta package is required.'
 }
 $releaseName = "HMP-V2-$version-windows-x64-portable.zip"
@@ -53,7 +53,7 @@ try {
         requiresWebView2Evergreen = $true
         files = @($files | Sort-Object FullName | ForEach-Object {
             @{
-                path = $_.FullName.Substring($package.Length + 1).Replace('\\','/')
+                path = $_.FullName.Substring($package.Length + 1).Replace('\','/')
                 size = $_.Length
                 sha256 = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
             }
