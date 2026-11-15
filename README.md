@@ -6,7 +6,7 @@ HMP V2 récupère les médias de Blackmagic HyperDeck par FTP en lecture seule. 
 
 Sur un réseau local de confiance, ajouter le recorder par son IPv4 privée, sélectionner les médias, choisir un dossier APFS ou NTFS, puis lancer le lot. Le FTP circule en clair. La V2 refuse exFAT quand le système de fichiers ne fournit pas la publication exclusive exigée. SMB reste non qualifié.
 
-Le Studio HD Plus a fait l’objet d’un premier offload physique sur macOS. Les essais Windows utilisent un HyperDeck synthétique. Le Studio Mini 2017 et les autres modèles restent à qualifier. Les rapports peuvent contenir des chemins locaux, des noms de médias et des informations réseau.
+Un premier offload physique du Studio HD Plus a été effectué sur macOS sur une candidate antérieure. Sur la PR #21, un essai réel Windows PERSONAL a copié 18,4 Gio depuis un Studio HD Mini avec vérification flux/local MD5 ; les tests synthétiques Windows restent complémentaires. Le transfert matériel macOS sur la candidate actuelle reste à qualifier. Le Studio Mini 2017 et les autres modèles restent à qualifier. Les rapports peuvent contenir des chemins locaux, des noms de médias et des informations réseau.
 
 [Installation, mise à jour et désinstallation](docs/BETA_INSTALLATION.md) · [Notes de version](docs/BETA_RELEASE_NOTES.md) · [Qualification des packages](docs/BETA_FINAL_QUALIFICATION.md) · [Signalement de sécurité](SECURITY.md)
 

@@ -12,15 +12,16 @@ import { CompactQueue, Reports, Transfers } from './transfers'
 import { RealReports } from './reports'
 import { useOffload } from './offload'
 import { useEquipment } from './equipment'
+import { NetworkScan } from './network-scan'
 import { EquipmentEdit, EquipmentSettings, RecorderMenu } from './equipment-controls'
 import { Badge, Empty, Loading, Panel, ProgressCell, Splitter, defaultLayout, layoutStyle, type Layout } from './ui'
 import './tokens.css'
 import './style.css'
 
-const visibleDemoDecks: Deck[] = import.meta.env.MODE === 'internal' ? [...demoDecks, {
+const visibleDemoDecks: Deck[] = [...demoDecks, {
   recorder: { id: 'extreme', name: 'HyperDeck Extreme 8K', host: '192.0.2.25', port: 21 },
   model: 'HyperDeck Extreme 8K',
-}] : demoDecks
+}]
 
 const pages = [
   { id: 'media', title: 'Médias', icon: Clapperboard },
@@ -29,7 +30,7 @@ const pages = [
   { id: 'settings', title: 'Paramètres', icon: Settings2 },
 ] as const
 type Page = typeof pages[number]['id']
-type Overlay = 'connect' | 'options' | 'components'
+type Overlay = 'scan' | 'connect' | 'options' | 'components'
 const layoutKey = 'hmp-v2.preview.layout'
 const idle: Listing = { status: 'idle', items: [] }
 
@@ -127,6 +128,7 @@ function App() {
   const [jobs, setJobs] = useState<Job[]>(initialJobs)
   const [playing, setPlaying] = useState(false)
   const [selectedJob, setSelectedJob] = useState<string>()
+  const [addedNotice, setAddedNotice] = useState({ text: '', revision: 0 })
   const [layout, setLayout] = useState(readLayout)
   const [viewport, setViewport] = useState({ width: window.innerWidth, height: window.innerHeight })
   const [overlay, setOverlay] = useState<Overlay>()
@@ -213,6 +215,12 @@ function App() {
     return () => window.clearInterval(interval)
   }, [demo, playing, demoPreferences.concurrency])
 
+  useEffect(() => {
+    if (!addedNotice.text) return
+    const timeout = window.setTimeout(() => setAddedNotice(previous => ({ ...previous, text: '' })), 3500)
+    return () => window.clearTimeout(timeout)
+  }, [addedNotice])
+
   function navigate(next: string) {
     setSelected(new Set())
     setPath(next)
@@ -245,20 +253,20 @@ function App() {
 
   async function addJobs() {
     if (!chosen.length || !values.destination.trim()) return
-    if (!demo) {
+    if (demo) {
+      const additions = chosen.map(item => demoJob(item, 'demo-' + demoSequence.current++))
+      setJobs(previous => [...previous, ...additions])
+    } else {
       if (!activeDeck) return
       const batch = await real.perform(() => offload.enqueue(activeDeck.recorder.id, chosen.map(item => item.remote_path), optionsDto(values)))
       if (!batch) return
-      setSelected(new Set())
-      setSelectedJob(undefined)
       setPreferredBatch(batch)
-      setOverlay(undefined)
-      setPage('transfers')
-      return
+      void real.refreshQueue()
     }
-    const additions = chosen.map(item => demoJob(item, 'demo-' + demoSequence.current++))
-    setJobs(previous => [...previous, ...additions])
     setSelected(new Set())
+    setOverlay(current => current === 'options' ? undefined : current)
+    const text = chosen.length === 1 ? '1 média ajouté à la file' : `${chosen.length} médias ajoutés à la file`
+    setAddedNotice(previous => ({ text, revision: previous.revision + 1 }))
   }
 
   function changeJob(id: string, retry: boolean) {
@@ -281,7 +289,7 @@ function App() {
   }
 
   const transferOptions = <TransferOptions demo={demo} values={values} onChange={setValues}
-    count={chosen.length} bytes={bytes} onAdd={addJobs} onChoose={real.choose} available={available} busy={!demo && (real.busy || !bridge.native)} />
+    count={chosen.length} bytes={bytes} onAdd={addJobs} onChoose={real.choose} available={available} destinationError={real.destinationError} busy={!demo && (real.busy || !bridge.native)} />
   return <div className="app">
     <main className="workspace" id="main-content">
       <header className="workspace-head">
@@ -296,7 +304,7 @@ function App() {
       {!demo && real.feedback && <div className="callout error bridge-error" role="alert">{real.feedback}</div>}
       {page === 'media' && <div className="media-layout" style={layoutStyle(activeLayout)}>
         <div className={'upper' + (compact ? ' compact' : '')}>
-          <Recorders decks={decks} active={id} demo={demo} native={bridge.native} onSelect={chooseDeck} onConnect={() => setOverlay('connect')}
+          <Recorders decks={decks} active={id} demo={demo} native={bridge.native} onSelect={chooseDeck} onConnect={() => setOverlay('connect')} onSearch={() => setOverlay('scan')}
             canConnect={hardware.ready && !hardware.busy} connections={hardware.status}
             onActions={(id, x, y) => {
               const deck = hardware.decks.find(item => item.recorder.id === id)
@@ -310,7 +318,7 @@ function App() {
         </div>
         <Splitter axis="y" label="Hauteur de la file" min={128} max={queueMax} value={activeLayout.queue} reverse
           onChange={queue => setLayout({ ...layout, queue })} />
-        <CompactQueue jobs={visibleJobs} names={names} onOpen={job => { setPreferredBatch(undefined); setSelectedJob(job); setPage('transfers') }} />
+        <CompactQueue notice={addedNotice.text} jobs={visibleJobs} names={names} onOpen={job => { if (job) setPreferredBatch(undefined); setSelectedJob(job); setPage('transfers') }} />
       </div>}
       {page === 'transfers' && <Transfers jobs={visibleJobs} names={names} demo={demo} selected={selectedJob} preferredBatch={preferredBatch} onSelect={job => { setPreferredBatch(undefined); setSelectedJob(job) }}
         playing={playing} onPlayback={() => setPlaying(value => !value)}
@@ -319,7 +327,7 @@ function App() {
       {page === 'reports' && (demo ? <Reports demo jobs={visibleJobs} /> : <RealReports queue={real.queue} />)}
       {page === 'settings' && <Settings demo={demo} native={bridge.native} info={info} values={values} onChange={setValues}
         onConnect={() => setOverlay('connect')} onReset={() => setLayout(defaultLayout)} onComponents={() => setOverlay('components')}
-        onChoose={real.choose} available={available} busy={real.busy} onSave={saveDefaults} saved={saved}
+        onChoose={real.choose} available={available} destinationError={real.destinationError} busy={real.busy} onSave={saveDefaults} saved={saved}
         canConnect={hardware.ready && !hardware.busy}
         equipmentPanel={<EquipmentSettings enabled={!demo && hardware.ready && !hardware.busy}
           hasDecks={hardware.decks.length > 0} notice={demo ? '' : hardware.notice}
@@ -335,6 +343,9 @@ function App() {
       <span><Activity size={13} />{demo ? 'Données fictives · aucun transfert physique' : realRunning ? 'Transferts réels en cours' : activeDeck ? activeDeck.recorder.host : 'Aucun appareil sélectionné'}</span>
       <span><Info size={13} />V2 bêta <span className="mono">{info?.version ?? version}</span></span>
     </footer>
+    {overlay === 'scan' && <Modal title="Rechercher des HyperDeck" wide onClose={() => setOverlay(undefined)}>
+      <NetworkScan onAdd={result => { hardware.identified(result); chooseDeck(result.deck.recorder.id) }} />
+    </Modal>}
     {overlay === 'connect' && <Modal title="Identifier un HyperDeck" onClose={() => setOverlay(undefined)}>
       <Connect onConnect={result => {
         hardware.identified(result)

@@ -3,7 +3,7 @@ import { useState } from 'react'
 import type { Connection, Deck, Media } from './contracts'
 import { isSystemPath, selectableMedia } from './media-visibility'
 import { formatBytes } from './demo'
-import { deviceImages } from './device-images'
+import { thumbnailSources } from './device-images'
 import { Destination, Options, type Preferences } from './settings'
 import { Badge, Empty, Loading, Panel } from './ui'
 
@@ -11,21 +11,29 @@ const connectionLabels: Record<Connection, string> = {
   checking: 'Vérification en cours', online: 'En ligne', offline: 'Hors ligne', unconfirmed: 'Identité à confirmer',
 }
 
-export function Recorders({ decks, active, demo, native, onSelect, onConnect, canConnect, connections, onActions }: {
+function DeviceThumbnail({ illustration, photo }: ReturnType<typeof thumbnailSources>) {
+  const [failed, setFailed] = useState<string[]>([])
+  const image = [photo, illustration].find(src => src && !failed.includes(src))
+  return <span className="device-icon">{image ? <img key={image} src={image} alt=""
+    onError={() => setFailed(previous => [...previous, image])} /> :
+    <span title="Enregistreur générique"><Server size={23} aria-hidden="true" /></span>}</span>
+}
+
+export function Recorders({ decks, active, demo, native, onSelect, onConnect, onSearch, canConnect, connections, onActions }: {
   decks: Deck[]; active: string | undefined; demo: boolean; native: boolean
-  onSelect: (id: string) => void; onConnect: () => void
+  onSelect: (id: string) => void; onConnect: () => void; onSearch: () => void
   canConnect: boolean; connections: Record<string, Connection>; onActions: (id: string, x: number, y: number) => void
 }) {
   const [filter, setFilter] = useState('')
   const query = filter.trim().toLocaleLowerCase()
   const visible = decks.filter(({ recorder, model }) => [recorder.name, model, recorder.host].some(value => value.toLocaleLowerCase().includes(query)))
   return <Panel title="HyperDeck" icon={Server} meta={String(decks.length)}
-    actions={!demo && <button className="icon-button" disabled={!native || !canConnect} aria-label="Identifier un HyperDeck" title="Identifier un HyperDeck" onClick={onConnect}><Plus size={15} /></button>}>
+    actions={!demo && <><button className="icon-button" disabled={!native || !canConnect} aria-label="Rechercher des HyperDeck" title="Rechercher des HyperDeck" onClick={onSearch}><Search size={15} /></button><button className="icon-button" disabled={!native || !canConnect} aria-label="Identifier un HyperDeck" title="Identifier un HyperDeck" onClick={onConnect}><Plus size={15} /></button></>}>
     <div className="toolbar"><label className="input-icon"><Search size={14} aria-hidden="true" /><input aria-label="Filtrer les HyperDeck"
       value={filter} onChange={event => setFilter(event.target.value)} placeholder="Rechercher" /></label></div>
     <div className="recorder-list">
       {visible.map(({ recorder, model }) => {
-        const image = deviceImages[model.toLowerCase()]
+        const images = thumbnailSources(model)
         const offline = demo && recorder.id === 'legacy'
         const connection = connections[recorder.id] ?? 'checking'
         const status = demo ? offline ? 'Hors ligne' : 'Appareil de démonstration' : connectionLabels[connection]
@@ -44,8 +52,7 @@ export function Recorders({ decks, active, demo, native, onSelect, onConnect, ca
             const bounds = event.currentTarget.getBoundingClientRect()
             onActions(recorder.id, bounds.left + 8, bounds.bottom)
           }}>
-          <span className="device-icon">{image ? <img src={image} alt="" /> :
-            <span title="Visuel du modèle indisponible dans ce build"><Server size={23} aria-hidden="true" /></span>}</span>
+          <DeviceThumbnail key={JSON.stringify(images)} {...images} />
           <span className="device-label"><strong className="truncate" title={recorder.name}>{recorder.name}</strong>
             {model !== recorder.name && <span className="truncate" title={model}>{model}</span>}
             <span className="mono truncate">{offline ? 'Hors ligne' : recorder.host}</span>
@@ -121,14 +128,14 @@ export function MediaBrowser({ deck, path, listing, selected, setSelected, navig
   </Panel>
 }
 
-export function TransferOptions({ demo, values, onChange, count, bytes, onAdd, onChoose, available, busy }: {
+export function TransferOptions({ demo, values, onChange, count, bytes, onAdd, onChoose, available, busy, destinationError }: {
   demo: boolean; values: Preferences; onChange: (p: Preferences) => void
   count: number; bytes: string | null; onAdd: () => void
-  onChoose: () => void; available?: string; busy: boolean
+  onChoose: () => void; available?: string; busy: boolean; destinationError?: string
 }) {
   return <Panel title="Destination et options" icon={SlidersHorizontal}>
     <div className="panel-body stack">
-      <Destination demo={demo} values={values} onChange={onChange} onChoose={onChoose} available={available} busy={busy} />
+      <Destination demo={demo} values={values} onChange={onChange} onChoose={onChoose} available={available} busy={busy} destinationError={destinationError} />
       <hr />
       <Options values={values} onChange={onChange} />
       <div className="selection-summary"><Clapperboard size={17} /><div><strong>{count} fichier(s) sélectionné(s)</strong>

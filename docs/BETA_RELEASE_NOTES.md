@@ -1,10 +1,12 @@
 # HMP V2 0.1.0-beta.1
 
-Candidate interne macOS ARM64 et Windows x64. Le pictogramme temporaire actuel est conservé et la refonte graphique est reportée. La décision de publication reste à prendre après les contrôles de la [checklist](BETA_RELEASE_CHECKLIST.md).
+Candidate macOS ARM64 et Windows x64, en configurations PUBLIC (illustrations originales V2, sans photos historiques) et PERSONAL (photos historiques V1 directement affichées, réservées à l'usage privé). Aucun Easter Egg ni sélecteur. Les packages de qualification de la PR #21 sont issus du commit `e73057d64cf41cc42e3696f0bf7a041800f75766`.
+
+Le 15 novembre 2026, un transfert physique Windows PERSONAL de 18,4 Gio a été confirmé par captures avec un HyperDeck Studio HD Mini. L'application macOS PERSONAL a été ouverte après exception Gatekeeper ; un transfert physique sur cette candidate macOS n'a pas été répété. Les empreintes des deux téléchargements PERSONAL ont été vérifiées. Les résultats historiques détaillés plus bas ne doivent pas être interprétés comme des tests de la candidate actuelle. Le pictogramme temporaire actuel est conservé et la refonte graphique est reportée. La décision de publication reste à prendre après les contrôles de la [checklist](BETA_RELEASE_CHECKLIST.md).
 
 - Identification des HyperDeck sur le réseau local, navigation FTP en lecture seule, file de transferts, annulation et rapport JSON.
 - Vérification des tailles et SHA-256 du flux reçu comparé à la relecture locale. Les rapports n’établissent pas une empreinte indépendante sur le recorder.
-- Premier offload physique du Studio HD Plus sous macOS. Windows x64 a été qualifié avec WebView2 et un HyperDeck synthétique. Destinations APFS et NTFS éprouvées dans les scénarios documentés. Le logiciel refuse exFAT par sécurité. SMB, les autres modèles et le Studio Mini 2017 restent à qualifier.
+- Premier offload physique du Studio HD Plus sous macOS. Windows x64 a été qualifié avec WebView2 et un HyperDeck synthétique. Destinations APFS et NTFS éprouvées dans les scénarios documentés. Le build Windows accepte les volumes exFAT qui réussissent la sonde de publication sans remplacement. SMB, les autres modèles et le Studio Mini 2017 restent à qualifier.
 - L’identité du profil Preview et le schéma de préférences sont conservés. Les packages utilisent la version bêta complète, avec les champs natifs numériques sur macOS.
 - La signature macOS est ad hoc. L’installateur Windows utilise NSIS par utilisateur, WebView2 Evergreen et un bootstrapper téléchargé si nécessaire. Les réactions de Gatekeeper et de SmartScreen dépendent du canal de téléchargement et de la politique du poste. [Plan de distribution](BETA_DISTRIBUTION_PLAN.md)
 
@@ -12,7 +14,7 @@ Candidate interne macOS ARM64 et Windows x64. Le pictogramme temporaire actuel e
 
 | Ressource | Origine et décision pour la candidate |
 | --- | --- |
-| Quatre images HyperDeck de `assets/devices` | Visuels historiques du dépôt. Aucune autorisation de redistribution trouvée dans les commits ou notices consultés. Le frontend V2 utilise le composant générique Server et les visuels historiques ne sont plus embarqués dans la V2. |
+| Quatre images HyperDeck de `assets/devices` | Visuels historiques du dépôt. Aucune autorisation de redistribution trouvée dans les commits ou notices consultés. La variante standard exclut ces photos et utilise des illustrations originales sous licence MIT. Le repère Lucide Server reste utilisé pour les modèles sans illustration dédiée. |
 | Icônes historiques V1 et V2 Preview | Les icônes V2 provenaient du projet historique. Les droits de la source graphique restent à confirmer. Les packages V2 utilisent un pictogramme temporaire dérivé de Server, sous licence ISC, avec sa source SVG et la notice Lucide. Les fichiers et packages Electron V1 conservent leurs propres actifs. |
 | Inter, Lucide, Resolve Workflow Assistant | Notices OFL, ISC/MIT et MIT disponibles dans `v2/desktop/licenses` et incluses avec la licence HMP. Le relevé des dépendances et les notices tierces à joindre sont décrits dans le rapport de qualification. |
 

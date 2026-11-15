@@ -45,11 +45,11 @@ function JobTable({ jobs, names, selected, onSelect, compact = false }: {
   </div>
 }
 
-export function CompactQueue({ jobs, names, onOpen }: Pick<QueueProps, 'jobs' | 'names'> & { onOpen: (id?: string) => void }) {
+export function CompactQueue({ jobs, names, onOpen, notice }: Pick<QueueProps, 'jobs' | 'names'> & { onOpen: (id?: string) => void; notice: string }) {
   const active = jobs.filter(job => ['running', 'verifying', 'finalizing'].includes(job.status)).length
   return <Panel title="File de transfert" icon={ListChecks}
     meta={jobs.length + (jobs.length === 1 ? ' tâche' : ' tâches') + (active ? ' · ' + active + ' actives' : '')}
-    actions={<button className="ghost small" onClick={() => onOpen()}>Ouvrir les transferts <ArrowUpRight size={14} /></button>}>
+    actions={<><span className="panel-meta" role="status">{notice}</span><button className="ghost small" onClick={() => onOpen()}>Ouvrir les transferts <ArrowUpRight size={14} /></button></>}>
     {jobs.length ? <JobTable jobs={jobs} names={names} compact onSelect={onOpen} /> : <Empty icon={ListChecks} title="File vide" />}
   </Panel>
 }

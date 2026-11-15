@@ -264,9 +264,15 @@ impl EquipmentStore {
             .collect()
     }
 
-    fn identify(&self, incoming: Equipment, online: bool, offload: &Offload) -> Result<Deck> {
+    fn identify(
+        &self,
+        incoming: Equipment,
+        online: bool,
+        offload: &Offload,
+        update_existing: bool,
+    ) -> Result<Deck> {
         let saved = self.change(|entries| {
-            let existing = entries.iter().position(|entry| entry.same_hardware(&incoming));
+            let existing = update_existing.then(|| entries.iter().position(|entry| entry.same_hardware(&incoming))).flatten();
             if entries.iter().enumerate().any(|(index, entry)| Some(index) != existing && entry.conflicts(&incoming)) {
                 return Err(TransferError::invalid("Adresse ou identité déjà enregistrée. Vérifiez l’appareil existant ou retirez-le de la configuration."));
             }
@@ -318,9 +324,9 @@ async fn probe(host: &str) -> Result<DeckIdentity> {
         .await
 }
 
-async fn check_ftp(recorder: &Recorder) -> Result<()> {
+pub(super) async fn check_ftp(recorder: &Recorder, cancel: &Cancellation) -> Result<()> {
     let ftp = FtpRemote::new(Duration::from_secs(3))?;
-    let mut session = ftp.connect(recorder, &Cancellation::default()).await?;
+    let mut session = ftp.connect(recorder, cancel).await?;
     session.close().await
 }
 
@@ -351,14 +357,14 @@ pub async fn identify_deck(
     host: String,
 ) -> std::result::Result<Identified, ErrorDto> {
     let identity = probe(&host).await.map_err(public_error)?;
-    let online = check_ftp(&identity.recorder)
+    let online = check_ftp(&identity.recorder, &Cancellation::default())
         .await
         .inspect_err(|error| {
             store.log_failure("FTP après identification", error);
         })
         .is_ok();
     let deck = store
-        .identify(identity.into(), online, &state)
+        .identify(identity.into(), online, &state, true)
         .map_err(public_error)?;
     Ok(Identified {
         deck,
@@ -368,6 +374,49 @@ pub async fn identify_deck(
             Connection::Offline
         },
     })
+}
+
+impl EquipmentStore {
+    pub(super) fn discovery_match(&self, identity: &DeckIdentity) -> Result<Option<String>> {
+        let incoming = Equipment::from(identity.clone());
+        let configuration = self.lock();
+        let saved = configuration.as_ref().map_err(Clone::clone)?;
+        Ok(saved
+            .recorders
+            .iter()
+            .find(|entry| entry.conflicts(&incoming))
+            .map(|entry| entry.custom_name.as_ref().unwrap_or(&entry.model).clone()))
+    }
+
+    pub(super) async fn add_discovered(
+        &self,
+        expected: &DeckIdentity,
+        offload: &Offload,
+    ) -> Result<Identified> {
+        let identity = probe(expected.recorder.host()).await?;
+        if identity.model != expected.model || identity.unique_id != expected.unique_id {
+            return Err(TransferError::invalid(
+                "L’identité HyperDeck a changé depuis la recherche",
+            ));
+        }
+        if self.discovery_match(&identity)?.is_some() {
+            return Err(TransferError::invalid(
+                "Appareil déjà enregistré ou adresse déjà utilisée",
+            ));
+        }
+        let online = check_ftp(&identity.recorder, &Cancellation::default())
+            .await
+            .is_ok();
+        let deck = self.identify(identity.into(), online, offload, false)?;
+        Ok(Identified {
+            deck,
+            connection: if online {
+                Connection::Online
+            } else {
+                Connection::Offline
+            },
+        })
+    }
 }
 
 #[derive(Serialize)]
@@ -409,7 +458,7 @@ impl EquipmentStore {
             Ok(identity) if !saved.matches_probe(&identity, accept_unidentified) => {
                 Connection::Unconfirmed
             }
-            Ok(identity) => match check_ftp(&identity.recorder).await {
+            Ok(identity) => match check_ftp(&identity.recorder, &Cancellation::default()).await {
                 Ok(()) => Connection::Online,
                 Err(error) => {
                     self.log_failure("sonde FTP", &error);
@@ -616,7 +665,7 @@ mod tests {
         let mut b = device("192.168.1.3", Some("b"));
         b.custom_name = Some("Régie B".into());
         for entry in [a.clone(), b.clone()] {
-            store.identify(entry, true, &offload).unwrap();
+            store.identify(entry, true, &offload, true).unwrap();
         }
         let other_files = ["offload-settings-v1.json", "rapport.json", "clip.mov"];
         for file in other_files {
@@ -635,13 +684,13 @@ mod tests {
         assert_eq!(saved[1].protocol_version.as_deref(), Some("1.8"));
 
         let rediscovered = device("192.168.1.4", Some("a"));
-        let updated = store.identify(rediscovered, true, &offload).unwrap();
+        let updated = store.identify(rediscovered, true, &offload, true).unwrap();
         assert_eq!(updated.recorder.id, a.id);
         assert_eq!(updated.recorder.name, "Régie A");
         assert_eq!(updated.recorder.host, "192.168.1.4");
         assert!(
             store
-                .identify(device("192.168.1.4", Some("other")), true, &offload)
+                .identify(device("192.168.1.4", Some("other")), true, &offload, true)
                 .is_err()
         );
 
@@ -685,10 +734,10 @@ mod tests {
         };
         assert!(!a.matches_probe(&probe, false));
         assert!(a.matches_probe(&probe, true));
-        store.identify(a.clone(), true, &offload).unwrap();
+        store.identify(a.clone(), true, &offload, true).unwrap();
         assert!(
             store
-                .identify(device(&a.host, None), true, &offload)
+                .identify(device(&a.host, None), true, &offload, true)
                 .is_err()
         );
         assert_eq!(

@@ -8,7 +8,7 @@ pub use simulation::{
 
 mod discovery;
 mod ftp;
-pub use discovery::{DeckIdentity, HyperDeckDiscovery};
+pub use discovery::{DeckIdentity, HyperDeckDiscovery, ScanObservation};
 pub use ftp::{FtpCredentials, FtpRemote};
 mod local;
 pub use local::LocalDestination;

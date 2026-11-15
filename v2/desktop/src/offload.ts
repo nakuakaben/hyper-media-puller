@@ -20,10 +20,12 @@ export function useOffload() {
   const [rates, setRates] = useState<Record<string, Rate>>({})
   const [busy, setBusy] = useState(false)
   const [feedback, setFeedback] = useState('')
+  const [destinationError, setDestinationError] = useState('')
   const [connectionError, setConnectionError] = useState('')
   const lock = useRef(false)
   const sampled = useRef<{ queue: Queue; timestamp: number }>()
   const initial = useRef(false)
+  const refreshQueue = useRef<() => Promise<void>>(async () => {})
 
   useEffect(() => {
     if (!bridge.native) return
@@ -36,10 +38,12 @@ export function useOffload() {
       }
     }).catch(error => { if (mounted) setFeedback(errorMessage(error)) })
     let timer: number
-    async function poll() {
+    let request = 0
+    async function updateQueue() {
+      const current = ++request
       try {
         const next = await offload.queue()
-        if (!mounted) return
+        if (!mounted || current !== request) return
         if (next.schema_version !== schemaVersion) throw new Error('Version de file inconnue')
         const timestamp = performance.now()
         const previous = sampled.current
@@ -56,33 +60,36 @@ export function useOffload() {
         setQueue(next)
         setConnectionError('')
       } catch (error) {
-        if (mounted) {
+        if (mounted && current === request) {
           sampled.current = undefined
           setRates({})
           setConnectionError(errorMessage(error))
         }
-      } finally {
-        if (mounted) timer = window.setTimeout(poll, 450)
       }
+    }
+    refreshQueue.current = updateQueue
+    async function poll() {
+      await updateQueue()
+      if (mounted) timer = window.setTimeout(poll, 450)
     }
     void poll()
     return () => { mounted = false; window.clearTimeout(timer) }
   }, [])
 
-  async function perform<T>(operation: () => Promise<T>): Promise<T | undefined> {
+  async function perform<T>(operation: () => Promise<T>, reportError = setFeedback): Promise<T | undefined> {
     if (lock.current) return
     lock.current = true
     setBusy(true)
-    setFeedback('')
+    reportError('')
     try { return await operation() }
-    catch (error) { setFeedback(errorMessage(error)); return undefined }
+    catch (error) { reportError(errorMessage(error)); return undefined }
     finally { lock.current = false; setBusy(false) }
   }
 
   async function choose() {
-    const value = await perform(offload.destination)
+    const value = await perform(offload.destination, setDestinationError)
     if (value) setSettings(value)
   }
 
-  return { settings, setSettings, queue, rates, busy, feedback, connectionError, perform, choose }
+  return { settings, setSettings, queue, rates, busy, feedback, destinationError, connectionError, perform, choose, refreshQueue: () => refreshQueue.current() }
 }

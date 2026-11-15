@@ -1,23 +1,18 @@
 import { fileURLToPath } from 'node:url'
-import { defineConfig, searchForWorkspaceRoot } from 'vite'
+import { defineConfig } from 'vite'
 
-export default defineConfig(({ mode }) => {
-  const internal = mode === 'internal'
-  const localPath = (relative: string) => fileURLToPath(new URL(relative, import.meta.url))
-
-  return {
-    clearScreen: false,
-    resolve: {
-      alias: {
-        './device-images': localPath(internal ? './src/device-images.internal.ts' : './src/device-images.ts'),
-      },
+export default defineConfig(({ mode }) => ({
+  clearScreen: false,
+  resolve: {
+    alias: {
+      '@legacy-photos': fileURLToPath(new URL(
+        mode === 'internal' ? './src/legacy-photos.internal.ts' : './src/legacy-photos.ts',
+        import.meta.url,
+      )),
     },
-    server: internal ? {
-      fs: { allow: [searchForWorkspaceRoot(localPath('.')), localPath('../../assets/devices')] },
-    } : undefined,
-    build: {
-      target: 'safari16',
-      outDir: internal ? 'dist-internal' : 'dist',
-    },
-  }
-})
+  },
+  build: {
+    target: 'safari16',
+    outDir: mode === 'internal' ? 'dist-internal' : 'dist',
+  },
+}))

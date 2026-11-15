@@ -33,9 +33,15 @@ pub fn fixture_root() -> Option<PathBuf> {
 
 pub fn starting_directory() -> Option<PathBuf> {
     let root = fixture_root()?;
-    let requested = PathBuf::from(std::env::var_os("HMP_WINDOWS_QUALIFICATION_DESTINATION")?);
+    let default = PathBuf::from(std::env::var_os("HMP_WINDOWS_QUALIFICATION_DESTINATION")?);
+    let extra = std::env::var_os("HMP_WINDOWS_QUALIFICATION_EXTRA_FOLDERS").unwrap_or_default();
+    let requested = fs::read_to_string(root.join("picker-location.txt"))
+        .ok()
+        .map_or_else(|| default.clone(), PathBuf::from);
     let folder = fs::canonicalize(&requested).ok()?;
-    (requested.is_absolute() && folder.starts_with(root) && folder.is_dir()).then_some(requested)
+    let allowed = (requested == default && folder.starts_with(&root))
+        || std::env::split_paths(&extra).any(|path| path == requested);
+    (allowed && requested.is_absolute() && folder.is_dir()).then_some(requested)
 }
 
 pub fn start(window: WebviewWindow) {

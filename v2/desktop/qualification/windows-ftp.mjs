@@ -77,7 +77,7 @@ export async function startFixture() {
     lines(socket, line => {
       commands.push(line)
       if (line !== 'device info') { errors.push('Unexpected HyperDeck command'); socket.destroy(); return }
-      socket.end('204 device info:\r\nmodel: HyperDeck Studio HD Plus\r\nprotocol version: 1.8\r\nunique id: hmp-windows-qa\r\n\r\n')
+      socket.end('204 device info:\r\nmodel: Blackmagic Design HyperDeck Studio HD-Plus\r\nprotocol version: 1.8\r\nunique id: hmp-windows-qa\r\n\r\n')
     })
   })
   const ftp = server(socket => {

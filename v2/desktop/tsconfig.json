@@ -5,6 +5,7 @@
     "jsx": "react-jsx",
     "module": "ESNext",
     "moduleResolution": "Bundler",
+    "paths": { "@legacy-photos": ["./src/legacy-photos.ts"] },
     "resolveJsonModule": true,
     "types": ["vite/client"],
     "strict": true,

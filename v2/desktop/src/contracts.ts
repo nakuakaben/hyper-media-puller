@@ -118,3 +118,16 @@ export const offload = {
 export const terminal = (status: Status) => ['done', 'verified', 'skipped', 'error', 'checksum_error', 'cancelled'].includes(status)
 export const scopeLabel = (scope: ChecksumResult['scope']) => scope === 'local_only'
   ? 'Empreinte locale' : 'Flux reçu comparé à sa relecture locale'
+
+export type ScanInterface = { name: string; address: string; cidr: string }
+export type ScanProgress = {
+  scanned: number; total: number; cancelled: boolean; finished: boolean; error: string | null
+  rows: Record<string, { address: string; name: string | null; model: string | null; ftp: boolean | null; saved: boolean }>
+}
+export const networkScan = {
+  interfaces: () => invoke<ScanInterface[]>('network_interfaces'),
+  start: ({ name, address }: ScanInterface, cidr: string) => invoke<string>('start_network_scan', { name, address, cidr }),
+  progress: (id: string) => invoke<ScanProgress>('network_scan_progress', { id }),
+  cancel: (id: string) => invoke<void>('cancel_network_scan', { id }),
+  add: (id: string, address: string) => invoke<Identified>('add_network_recorder', { id, address }),
+}

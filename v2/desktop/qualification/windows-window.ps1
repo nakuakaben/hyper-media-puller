@@ -90,7 +90,7 @@ if ($Action -eq 'folder') {
   }
   $deadline = [DateTime]::UtcNow.AddSeconds(8)
   while ([Native]::IsWindow($handle) -and [DateTime]::UtcNow -lt $deadline) { Start-Sleep -Milliseconds 150 }
-  if ([Native]::IsWindow($handle)) { throw 'The Windows folder picker did not confirm the current directory' }
+  if ([Native]::IsWindow($handle)) { throw 'The Windows folder picker did not confirm the requested directory' }
   Write-Output 'Native Windows folder picker invoked'
   return
 }
