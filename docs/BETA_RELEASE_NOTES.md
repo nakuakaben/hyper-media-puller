@@ -1,6 +1,8 @@
 # HMP V2 0.1.0-beta.1
 
-Candidate interne macOS ARM64 et Windows x64. Le pictogramme temporaire actuel est conservé et la refonte graphique est reportée. La décision de publication reste à prendre après les contrôles de la [checklist](BETA_RELEASE_CHECKLIST.md).
+Candidate macOS ARM64 et Windows x64, en configurations PUBLIC (illustrations originales V2, sans photos historiques) et PERSONAL (photos historiques V1 directement affichées, réservées à l'usage privé). Aucun Easter Egg ni sélecteur. Les packages de qualification de la PR #21 sont issus du commit `e73057d64cf41cc42e3696f0bf7a041800f75766`.
+
+Le 15 novembre 2026, un transfert physique Windows PERSONAL de 18,4 Gio a été confirmé par captures avec un HyperDeck Studio HD Mini. L'application macOS PERSONAL a été ouverte après exception Gatekeeper ; un transfert physique sur cette candidate macOS n'a pas été répété. Les empreintes des deux téléchargements PERSONAL ont été vérifiées. Les résultats historiques détaillés plus bas ne doivent pas être interprétés comme des tests de la candidate actuelle. Le pictogramme temporaire actuel est conservé et la refonte graphique est reportée. La décision de publication reste à prendre après les contrôles de la [checklist](BETA_RELEASE_CHECKLIST.md).
 
 - Identification des HyperDeck sur le réseau local, navigation FTP en lecture seule, file de transferts, annulation et rapport JSON.
 - Vérification des tailles et SHA-256 du flux reçu comparé à la relecture locale. Les rapports n’établissent pas une empreinte indépendante sur le recorder.
