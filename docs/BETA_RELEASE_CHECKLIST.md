@@ -4,6 +4,18 @@ Candidate `0.1.0-beta.1` pour macOS ARM64 et Windows x64. Cette checklist sert �
 
 Décision actuelle **NO-GO publication**. [Procédure et résultats d’acceptation](BETA_ACCEPTANCE.md)
 
+## Relevé complémentaire — 15 novembre 2026 (PR #21, `e73057d`)
+
+Ce relevé complète les coches historiques ci-dessous, qui décrivent parfois des candidats antérieurs.
+
+- **PUBLIC / PERSONAL** : quatre installateurs déclarés produits depuis `e73057d` ; les rapports de fabrication indiquent six contrôles CI réussis, 7 tests frontend et 70 tests Rust. PUBLIC utilise les illustrations V2 ; PERSONAL inclut les quatre photos V1 pour usage privé. Aucun code secret ni sélecteur de style.
+- **Windows PERSONAL** : essai physique confirmé par captures sur HyperDeck Studio HD Mini `10.2.50.101`, transfert d’environ 18,4 Gio vers NTFS, copie et comparaison flux/local MD5 à 100 %, rapport produit (211,5 s). Cet essai ne prouve pas un SHA-256 indépendant du recorder.
+- **macOS PERSONAL** : application ouverte et examinée sans HyperDeck disponible. DMG téléchargé via Vivaldi, attribut `com.apple.quarantine` présent, SHA-256 conforme. `spctl --assess` retourne `rejected` ; le lancement Finder a nécessité l’autorisation « Ouvrir quand même » et une authentification administrateur, puis HMP s’est ouvert.
+- **Empreintes PERSONAL confirmées depuis les téléchargements utilisateur** : Windows `5bb4fb97c3c81aa49802c7f3366cc3643da6a893ff9865712ac4467346a3fef2` ; macOS `20376f36bc3d55964879a7ad8fa1548799c5bf2e1dedcaea3ed8b033b110bbee`.
+- **Toujours ouverts** : téléchargements PUBLIC et empreintes finales, licences/notices effectivement jointes au canal final, signalement privé GitHub, SmartScreen sur téléchargement, installation sur Windows sans WebView2, remplacement/profil Preview, scénarios SAFE complets sur packages finaux. Transfert physique macOS sur ce commit reporté ; un test matériel macOS antérieur existe.
+- **Gatekeeper** : comportement de blocage puis d’autorisation manuelle observé sur PERSONAL. Cela ne vaut pas validation de la distribution PUBLIC sur compte standard isolé ; signature/notarisation non fournies.
+
+
 ## Préparation de la candidate
 
 - [x] **IMPORTANT** Confirmer la licence MIT publique et la règle active de `main` avec six contrôles et fusion Squash. [Règle GitHub](https://github.com/nakuakaben/hyper-media-puller/rules/27139736)
