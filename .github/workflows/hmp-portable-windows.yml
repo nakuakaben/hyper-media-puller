@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: 'Existing immutable HMP tag, for candidate packaging only'
+        description: 'Existing immutable HMP tag, candidate packaging only'
         required: true
         type: string
 
@@ -36,52 +36,16 @@ jobs:
       - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8
         with:
           toolchain: 1.99.1
-      - name: Verify selected immutable tag and package version
+      - name: Verify exact release tag and version
         if: github.event_name == 'workflow_dispatch'
         shell: pwsh
         run: |
           $tag = '${{ inputs.release_tag }}'
-          if ($tag -cnotmatch '^v0\.[0-9]+\.[0-9]+-beta\.[0-9]+
-      - name: Build public HMP Tauri executable without NSIS
-        shell: pwsh
-        run: |
-          npm run tauri -- build --ci --target x86_64-pc-windows-msvc --no-bundle -- --locked
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Create portable candidate with resource manifest
-        shell: pwsh
-        run: |
-          ./qualification/package-portable-windows.ps1 -Binary src-tauri/target/x86_64-pc-windows-msvc/release/hmp-v2-preview.exe -Output "$env:RUNNER_TEMP/hmp-portable"
-      - name: Verify archive payload and digest
-        shell: pwsh
-        run: |
-          $out = Join-Path $env:RUNNER_TEMP 'hmp-portable'
-          $zip = @(Get-ChildItem -LiteralPath $out -Filter '*.zip')
-          if ($zip.Count -ne 1) { throw 'Expected one ZIP.' }
-          $expected = (Get-Content (Join-Path $out 'SHA256SUMS-portable.txt')).Split(' ')[0]
-          $actual = (Get-FileHash -LiteralPath $zip[0].FullName -Algorithm SHA256).Hash.ToLowerInvariant()
-          if ($actual -ne $expected) { throw 'Portable ZIP digest mismatch.' }
-          $extract = Join-Path $env:RUNNER_TEMP 'hmp-portable-extracted'
-          Expand-Archive -LiteralPath $zip[0].FullName -DestinationPath $extract
-          $root = Join-Path $extract 'HMP'
-          $manifest = Get-Content -LiteralPath (Join-Path $root 'studio-portable.json') -Raw | ConvertFrom-Json
-          if ($manifest.appId -ne 'hyper-media-puller' -or $manifest.platform -ne 'windows' -or $manifest.executable -ne 'hmp-v2-preview.exe') { throw 'Unexpected portable identity.' }
-          foreach ($file in $manifest.files) {
-            if ($file.path -match '(^|/)\\.\\.(?:/|$)' -or [IO.Path]::IsPathRooted($file.path)) { throw 'Unsafe path in manifest.' }
-            $path = Join-Path $root $file.path
-            if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "Missing portable file: $($file.path)" }
-            if ((Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant() -ne $file.sha256) { throw "Portable file hash mismatch: $($file.path)" }
-          }
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: HMP-V2-windows-x64-portable-candidate
-          path: ${{ runner.temp }}/hmp-portable/*
-          if-no-files-found: error
-          retention-days: 7
-) { throw 'Unsupported release tag.' }
+          if ($tag -cnotmatch '^v0\.[0-9]+\.[0-9]+-beta\.[0-9]+$') { throw 'Unsupported release tag.' }
           $exact = (git describe --tags --exact-match HEAD 2>$null)
-          if ($LASTEXITCODE -ne 0 -or $exact -cne $tag) { throw 'Checkout is not the exact requested tag.' }
+          if ($LASTEXITCODE -ne 0 -or $exact -cne $tag) { throw 'Checkout is not the requested tag.' }
           $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
-          if ("v$version" -cne $tag) { throw 'Selected tag and package version differ.' }
+          if ("v$version" -cne $tag) { throw 'Tag and package version differ.' }
       - run: npm ci
       - name: Build public HMP Tauri executable without NSIS
         shell: pwsh
