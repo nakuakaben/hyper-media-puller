@@ -8,6 +8,11 @@ on:
       - 'v2/crates/**'
       - 'LICENSE'
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Existing immutable HMP tag, candidate packaging only'
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -23,13 +28,26 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          ref: ${{ inputs.release_tag && format('refs/tags/{0}', inputs.release_tag) || github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '24.22.0'
       - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8
         with:
           toolchain: 1.99.1
+      - name: Verify exact release tag and version
+        if: github.event_name == 'workflow_dispatch'
+        shell: pwsh
+        env:
+          EXPECTED_TAG: ${{ inputs.release_tag }}
+        run: |
+          $tag = $env:EXPECTED_TAG
+          if ($tag -cnotmatch '^v0\.[0-9]+\.[0-9]+-beta\.[0-9]+$') { throw 'Unsupported release tag.' }
+          $exact = (git describe --tags --exact-match HEAD 2>$null)
+          if ($LASTEXITCODE -ne 0 -or $exact -cne $tag) { throw 'Checkout is not the requested tag.' }
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          if ("v$version" -cne $tag) { throw 'Tag and package version differ.' }
       - run: npm ci
       - name: Build public HMP Tauri executable without NSIS
         shell: pwsh
