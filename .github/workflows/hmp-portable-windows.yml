@@ -39,8 +39,10 @@ jobs:
       - name: Verify exact release tag and version
         if: github.event_name == 'workflow_dispatch'
         shell: pwsh
+        env:
+          EXPECTED_TAG: ${{ inputs.release_tag }}
         run: |
-          $tag = '${{ inputs.release_tag }}'
+          $tag = $env:EXPECTED_TAG
           if ($tag -cnotmatch '^v0\.[0-9]+\.[0-9]+-beta\.[0-9]+$') { throw 'Unsupported release tag.' }
           $exact = (git describe --tags --exact-match HEAD 2>$null)
           if ($LASTEXITCODE -ne 0 -or $exact -cne $tag) { throw 'Checkout is not the requested tag.' }
